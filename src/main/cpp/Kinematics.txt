@@ -1,0 +1,373 @@
+/*----------------------------------------------------------------------------*/
+/* Copyright (c) 2018 FIRST. All Rights Reserved.                             */
+/* Open Source Software - may be modified and shared by FRC teams. The code   */
+/* must be accompanied by the FIRST BSD license file in the root directory of */
+/* the project.                                                               */
+/*----------------------------------------------------------------------------*/
+//#define CALSWERVE  //Move all gears to left side of robot and then read the Zero values for table
+#define CAMERA
+//#define LIME
+
+#include <stdio.h>
+#include <frc/Joystick.h>
+#include <frc/DigitalInput.h>
+#include <frc/TimedRobot.h>
+#include <frc/Timer.h>
+#include <frc2/command/PIDCommand.h>
+#include <frc2/command/PIDSubsystem.h>
+
+#include <frc/kinematics/SwerveDriveKinematics.h>
+
+#include "ctre/Phoenix.h"
+
+//#include <cmath>
+
+
+#include <frc/PneumaticsControlModule.h>
+#include <frc/Solenoid.h>
+#include <frc/smartdashboard/SmartDashboard.h>
+#include "ahrs.h" //https://www.kauailabs.com/public_files/navx-mxp/apidocs/c++/
+
+#include "frc/DriverStation.h"
+#ifdef CAMERA
+#include <cameraserver/CameraServer.h>
+#endif
+
+
+#define TIMEOUT 10
+#define NOTIMEOUT 0
+#define TRUE 1
+#define FALSE 0
+
+int Initialized = 0;
+
+//phematic motor
+int RotaryVal = 0;
+double TimeVal = 0.25;
+int TankFull = 0;
+
+//Joystick defines
+#define DIR 0
+#define ROT 1
+#define ARM 2
+
+
+
+#define PI 3.141592654
+#define ENCODER_RES_FL 4096 //4179.0 //4156.0 //4180.0
+#define ENCODER_RES_RL 4096 //4152.0 //4185.0 //4180.0
+#define ENCODER_RES_FR 4096//4154.0 //4076.0 //4180.0
+#define ENCODER_RES_RR 4096 //4162.0 //4175.0 //4180.0
+
+#define PVALUE 0.15
+#define DVALUE 0.0
+#define IVALUE 0.0
+
+//Swerve CAN bus defines for steering motors
+#define FLS 4
+#define FRS 1
+#define RRS 3
+#define RLS 2
+//Swerve CAN bus defines for drive motors
+#define FLD 15
+#define FRD 12
+#define RLD 13
+#define RRD 14
+
+
+
+int UpdateCount=0;    //counter to slow screen update so it does not take too many CPU cycles
+double RobotAngle=0.0;
+double RobotPitch=0.0;
+double GyroOffset=0.0;
+int EncoderAct = 0;        //storage for actual angles of wheel from motor controller encoder feedback
+
+                    //local variable for determining best way(least delta degrees) to meet rotatioanl target
+AHRS *ahrs;  //gyro
+
+
+//#define ARM_TIME  .25_s
+
+
+
+class Robot : public frc::TimedRobot
+{
+public:
+    void RobotInit(void);
+    
+ 
+ 
+    int gUpdateCount = 0; ///counter to be sure we only update drive screen every once in a while so it does not bog down the network
+    void UpdateDriverScreen(void) //` fix later to display what you actually want
+    {
+        char str[40];
+   
+
+        if (gUpdateCount <= 0)
+        {
+            gUpdateCount = 25; //delay between displays to not bog down system
+   
+           //Code for displaying swerve values
+         //sprintf(str,"Encoder:%d",SRX_Motor.GetSensorCollection().GetPulseWidthPosition(),(4096/360.0));
+         //frc::SmartDashboard::PutString("DB/String 0",str);
+          sprintf(str,"PID:%4.2f",PID.Calculate((ahrs->GetRoll()-GyroOffset)/90, 0));
+         frc::SmartDashboard::PutString("DB/String 1",str);
+          sprintf(str,"GyroPitch:%4.2f",RobotPitch);
+         frc::SmartDashboard::PutString("DB/String 2",str);
+		   
+          
+		 //  frc::SmartDashboard::PutNumber("DB/LED 0",light);
+          // frc::SmartDashboard::PutNumber("DB/LED 1",Shooter_On);
+
+        }
+        gUpdateCount--;
+    } // End UpdateDriverScreen
+	
+     
+
+    void ReadGyro(void) {
+		RobotAngle = ahrs->GetYaw();
+        
+        RobotPitch = ahrs->GetRoll()-GyroOffset;
+	}	// End ReadyGyro
+	void ResetGyro(void) {
+		ahrs->ZeroYaw();
+        
+        GyroOffset=ahrs->GetRoll();
+	}	// End ResetGyro
+
+ 
+    void AutonomousPeriodic() override
+    {
+   
+        UpdateDriverScreen();
+        
+    }
+
+    void TeleopPeriodic() override
+    {
+
+        if (!Initialized)
+        {
+            RobotInit(); 
+            Initialized=1;
+        }
+        
+        auto states = m_kinematics.ToSwerveModuleStates(frc::ChassisSpeeds{Dir_Stick.GetX() * 30_mps,Dir_Stick.GetY() * 30_mps,units::radians_per_second_t(90*Rot_Stick.GetY())});
+
+        auto [fl,fr,bl,br] = states;
+
+        fl = fl.Optimize(fl,units::radian_t((double)FLSteer.GetSensorCollection().GetPulseWidthPosition()/4096)); //optimizes motion
+        
+        FLDrive.Set(ControlMode::Velocity,(double)fl.speed);
+        
+        
+
+
+        ReadGyro(); 
+
+        UpdateDriverScreen(); 
+
+    }
+
+        TalonSRX RLSteer = {RLS};
+    TalonSRX RRSteer = {RRS};
+    TalonSRX FRSteer = {FRS};
+    TalonSRX FLSteer = {FLS};
+
+    TalonFX RLDrive = {RLD};
+    TalonFX FLDrive = {FLD};
+    TalonFX FRDrive = {FRD};
+    TalonFX RRDrive = {RRD};
+
+private:
+
+    frc::Joystick Rot_Stick{ROT};
+    frc::Joystick Dir_Stick{DIR};
+    frc::Joystick Arm_Stick{ARM};
+
+    TalonFX Falcon_Motor = {0};
+    TalonSRX SRX_Motor = {1};
+   
+
+    frc::Solenoid Rotary{frc::PneumaticsModuleType::CTREPCM,0}; //0 is a rotating pnuematic "motor"
+    frc::Solenoid Linear{frc::PneumaticsModuleType::CTREPCM,1}; //1 is a standard cylinder
+    
+    frc2::PIDController PID{1, 0, 0};
+
+   frc::Timer IntakeTimer;
+
+   // frc::DigitalInput ElevatorBottom{1};      
+   
+    frc::PneumaticsControlModule PCM;
+
+
+
+    
+    //` Locations for the swerve drive modules relative to the robot center.
+    const frc::Translation2d m_frontLeftLocation{0.381_m, 0.381_m};
+    const frc::Translation2d m_frontRightLocation{0.381_m, -0.381_m};
+    const frc::Translation2d m_backLeftLocation{-0.381_m, 0.381_m};
+    const frc::Translation2d m_backRightLocation{-0.381_m, -0.381_m};
+
+    frc::SwerveDriveKinematics<4> m_kinematics{m_frontLeftLocation, m_frontRightLocation, m_backLeftLocation,m_backRightLocation};
+};
+
+
+#ifndef RUNNING_FRC_TESTS
+int main()
+{
+    return frc::StartRobot<Robot>();
+}
+#endif
+
+void Robot::RobotInit()
+{
+    Initialized = 1;
+    ahrs = new AHRS(frc::SPI::Port::kMXP);
+    
+
+    IntakeTimer.Start();
+    IntakeTimer.Reset();
+     
+    FLSteer.ConfigSelectedFeedbackSensor(FeedbackDevice::PulseWidthEncodedPosition, 0, NOTIMEOUT);
+		FLSteer.SetSensorPhase(false);
+		FLSteer.ConfigNominalOutputForward(0.0f, TIMEOUT);
+		FLSteer.ConfigNominalOutputReverse(0.0f, TIMEOUT);
+	   	FLSteer.ConfigPeakOutputForward(+12.0f, TIMEOUT);
+	 	FLSteer.ConfigPeakOutputReverse(-12.0f, TIMEOUT);
+		FLSteer.SelectProfileSlot(0, 0);
+		FLSteer.Config_kP(0, PVALUE, TIMEOUT);
+		FLSteer.Config_kI(0, IVALUE, TIMEOUT);
+		FLSteer.Config_kD(0, DVALUE, TIMEOUT);
+        FLSteer.Config_kF(0, 0.0, TIMEOUT);
+        FLSteer.ConfigFeedbackNotContinuous(0,TIMEOUT);
+        FLSteer.ConfigClosedloopRamp(.3,TIMEOUT);
+        //FLSteer.Set(ControlMode::Position, ClosestZero[FL]);
+       // FLSteer.SetSelectedSensorPosition(0,0,TIMEOUT);
+
+        
+        FRSteer.ConfigSelectedFeedbackSensor(FeedbackDevice::PulseWidthEncodedPosition, 0, NOTIMEOUT);	 
+		FRSteer.SetSensorPhase(false);
+	    FRSteer.ConfigNominalOutputForward(0.0f, TIMEOUT);
+		FRSteer.ConfigNominalOutputReverse(0.0f, TIMEOUT);
+	    FRSteer.ConfigPeakOutputForward(+12.0f, TIMEOUT);
+	 	FRSteer.ConfigPeakOutputReverse(-12.0f, TIMEOUT);
+		FRSteer.SelectProfileSlot(0, 0);
+		FRSteer.Config_kP(0, PVALUE, TIMEOUT);
+		FRSteer.Config_kI(0, IVALUE, TIMEOUT);
+		FRSteer.Config_kD(0, DVALUE, TIMEOUT);
+        FRSteer.Config_kF(0, 0.0, TIMEOUT);
+        FRSteer.ConfigFeedbackNotContinuous(0,TIMEOUT);
+        //FRSteer.Set(ControlMode::Position, ClosestZero[FR]);
+        FRSteer.ConfigClosedloopRamp(.3,TIMEOUT);
+      
+        RLSteer.ConfigSelectedFeedbackSensor(FeedbackDevice::PulseWidthEncodedPosition, 0, NOTIMEOUT);	
+		RLSteer.SetSensorPhase(false);
+	    RLSteer.ConfigNominalOutputForward(0.0f, TIMEOUT);
+		RLSteer.ConfigNominalOutputReverse(0.0f, TIMEOUT);
+	    RLSteer.ConfigPeakOutputForward(+12.0f, TIMEOUT);
+	 	RLSteer.ConfigPeakOutputReverse(-12.0f, TIMEOUT);
+		RLSteer.SelectProfileSlot(0, 0);
+		RLSteer.Config_kP(0, PVALUE, TIMEOUT);
+		RLSteer.Config_kI(0, IVALUE, TIMEOUT);
+		RLSteer.Config_kD(0, DVALUE, TIMEOUT);
+		RLSteer.Config_kF(0, 0.0, TIMEOUT);
+        RLSteer.ConfigFeedbackNotContinuous(0,TIMEOUT);
+        //RLSteer.Set(ControlMode::Position, 0.0);
+        //RLSteer.Set(ControlMode::Position, ClosestZero[RL]);
+        RLSteer.ConfigClosedloopRamp(.3,TIMEOUT);
+ 	    
+        RRSteer.ConfigSelectedFeedbackSensor(FeedbackDevice::PulseWidthEncodedPosition, 0, NOTIMEOUT);	 
+		RRSteer.SetSensorPhase(false);
+	    RRSteer.ConfigNominalOutputForward(0.0f, TIMEOUT);
+		RRSteer.ConfigNominalOutputReverse(0.0f, TIMEOUT);
+	    RRSteer.ConfigPeakOutputForward(+12.0f, TIMEOUT);
+	 	RRSteer.ConfigPeakOutputReverse(-12.0f, TIMEOUT);
+		RRSteer.SelectProfileSlot(0, 0);
+		RRSteer.Config_kP(0, PVALUE, TIMEOUT);
+		RRSteer.Config_kI(0, IVALUE, TIMEOUT);
+		RRSteer.Config_kD(0, DVALUE, TIMEOUT);
+        RRSteer.Config_kF(0, 0.0, TIMEOUT);
+        RRSteer.ConfigFeedbackNotContinuous(0,TIMEOUT);
+        //RRSteer.Set(ControlMode::Position, ClosestZero[RR]);
+		RRSteer.ConfigClosedloopRamp(.3,TIMEOUT);
+         
+
+        
+        RLDrive.GetSensorCollection().SetIntegratedSensorPosition(0);
+        RLDrive.ConfigSelectedFeedbackSensor(FeedbackDevice::IntegratedSensor, 0, NOTIMEOUT);	 // PIDLoop=0 
+		RLDrive.SetSensorPhase(false);
+	    RLDrive.ConfigNominalOutputForward(0.0f, TIMEOUT);
+		RLDrive.ConfigNominalOutputReverse(0.0f, TIMEOUT);
+	    RLDrive.ConfigPeakOutputForward(+12.0f, TIMEOUT);
+	 	RLDrive.ConfigPeakOutputReverse(-12.0f, TIMEOUT);
+		RLDrive.SelectProfileSlot(0, 0);
+		RLDrive.Config_kP(0, 0.5, TIMEOUT);
+		RLDrive.Config_kI(0, 0.0, TIMEOUT);
+		RLDrive.Config_kD(0, 0.0, TIMEOUT);
+        RLDrive.ConfigClosedloopRamp(.3,TIMEOUT);
+        RLDrive.ConfigSupplyCurrentLimit(SupplyCurrentLimitConfiguration(true,40.0,40.0,.1),TIMEOUT);
+        
+
+		RRDrive.GetSensorCollection().SetIntegratedSensorPosition(0);
+        RRDrive.ConfigSelectedFeedbackSensor(FeedbackDevice::IntegratedSensor, 0, NOTIMEOUT);	 
+		RRDrive.SetSensorPhase(false);
+	    RRDrive.ConfigNominalOutputForward(0.0f, TIMEOUT);
+		RRDrive.ConfigNominalOutputReverse(0.0f, TIMEOUT);
+	    RRDrive.ConfigPeakOutputForward(+12.0f, TIMEOUT);
+	 	RRDrive.ConfigPeakOutputReverse(-12.0f, TIMEOUT);
+		RRDrive.SelectProfileSlot(0, 0);
+		RRDrive.Config_kP(0, 0.5, TIMEOUT);
+		RRDrive.Config_kI(0, 0.0, TIMEOUT);
+		RRDrive.Config_kD(0, 0.0, TIMEOUT);
+		RRDrive.Set(ControlMode::Position, 0.0);
+        RRDrive.ConfigClosedloopRamp(.3,TIMEOUT);
+        RRDrive.ConfigSupplyCurrentLimit(SupplyCurrentLimitConfiguration(true,40.0,40.0,.1),TIMEOUT);
+
+        FRDrive.GetSensorCollection().SetIntegratedSensorPosition(0);
+        FRDrive.ConfigSelectedFeedbackSensor(FeedbackDevice::IntegratedSensor, 0, NOTIMEOUT);	 
+		FRDrive.SetSensorPhase(false);
+	    FRDrive.ConfigNominalOutputForward(0.0f, TIMEOUT);
+		FRDrive.ConfigNominalOutputReverse(0.0f, TIMEOUT);
+	    FRDrive.ConfigPeakOutputForward(+12.0f, TIMEOUT);
+	 	FRDrive.ConfigPeakOutputReverse(-12.0f, TIMEOUT);
+		FRDrive.SelectProfileSlot(0, 0);
+		FRDrive.Config_kP(0, 0.5, TIMEOUT);
+		FRDrive.Config_kI(0, 0.0, TIMEOUT);
+		FRDrive.Config_kD(0, 0.0, TIMEOUT);
+		FRDrive.Set(ControlMode::Position, 0.0);
+        FRDrive.ConfigClosedloopRamp(.3,TIMEOUT);
+        FRDrive.ConfigSupplyCurrentLimit(SupplyCurrentLimitConfiguration(true,40.0,40.0,.1),TIMEOUT);
+
+		FLDrive.GetSensorCollection().SetIntegratedSensorPosition(0);
+        FLDrive.ConfigSelectedFeedbackSensor(FeedbackDevice::IntegratedSensor, 0, NOTIMEOUT);	
+		FLDrive.SetSensorPhase(false);
+	    FLDrive.ConfigNominalOutputForward(0.0f, TIMEOUT);
+		FLDrive.ConfigNominalOutputReverse(0.0f, TIMEOUT);
+	    FLDrive.ConfigPeakOutputForward(+12.0f, TIMEOUT);
+	 	FLDrive.ConfigPeakOutputReverse(-12.0f, TIMEOUT);
+		FLDrive.SelectProfileSlot(0, 0);
+		FLDrive.Config_kP(0, 0.5, TIMEOUT);
+		FLDrive.Config_kI(0, 0.0, TIMEOUT);
+		FLDrive.Config_kD(0, 0.0, TIMEOUT);
+		FLDrive.Set(ControlMode::Position, 0.0);
+        FLDrive.ConfigClosedloopRamp(.3,TIMEOUT);
+        FLDrive.ConfigSupplyCurrentLimit(SupplyCurrentLimitConfiguration(true,40.0,40.0,.1),TIMEOUT);
+    
+    
+    ResetGyro();
+    
+    //Camera
+	#ifdef CAMERA
+    frc::CameraServer::StartAutomaticCapture();
+    //frc::CameraServer::StartAutomaticCapture(1);
+    
+    #endif
+    //Getting Alliance and location
+    //Alliance = frc::DriverStation::GetAlliance();
+    //StartingLocation = frc::DriverStation::GetAlliance()*10 + frc::DriverStation::GetLocation();
+    //StartingLocation = 0; //frc::SmartDashboard::GetNumber("DB/Slider 0",-1);
+    
+  
+}
