@@ -82,6 +82,8 @@ double RobotPitch=0.0;
 double GyroOffset=0.0;
 int EncoderAct = 0;        //storage for actual angles of wheel from motor controller encoder feedback
 
+frc::SwerveModuleState fl,fr,rr,rl;
+
                     //local variable for determining best way(least delta degrees) to meet rotatioanl target
 AHRS *ahrs;  //gyro
 
@@ -110,12 +112,13 @@ public:
            //Code for displaying swerve values
          //sprintf(str,"Encoder:%d",SRX_Motor.GetSensorCollection().GetPulseWidthPosition(),(4096/360.0));
          //frc::SmartDashboard::PutString("DB/String 0",str);
-          sprintf(str,"PID:%4.2f",PID.Calculate((ahrs->GetRoll()-GyroOffset)/90, 0));
+          //sprintf(str,"PID:%4.2f",PID.Calculate((ahrs->GetRoll()-GyroOffset)/90, 0));
+            sprintf(str,"Theta:%4.2f",theta);
          frc::SmartDashboard::PutString("DB/String 1",str);
-          sprintf(str,"GyroPitch:%4.2f",RobotPitch);
+          sprintf(str,"GyroPitch:%4.2f",Rot_Stick.GetX());
          frc::SmartDashboard::PutString("DB/String 2",str);
-		   
-          
+		   sprintf(str,"Angle:%4.2f",theta/PI*4096);
+         frc::SmartDashboard::PutString("DB/String 3",str);
 		 //  frc::SmartDashboard::PutNumber("DB/LED 0",light);
           // frc::SmartDashboard::PutNumber("DB/LED 1",Shooter_On);
 
@@ -144,6 +147,10 @@ public:
         
     }
 
+    int i = 0;
+    units::meters_per_second_t vx,vy = 0_mps;
+    units::radians_per_second_t theta;
+
     void TeleopPeriodic() override
     {
 
@@ -153,14 +160,24 @@ public:
             Initialized=1;
         }
         
-        auto states = m_kinematics.ToSwerveModuleStates(frc::ChassisSpeeds{Dir_Stick.GetX() * 30_mps,Dir_Stick.GetY() * 30_mps,units::radians_per_second_t(90*Rot_Stick.GetY())});
+        
+        //vx = 1_mps;//units::meters_per_second_t(Dir_Stick.GetY()*30_mps);
+        //vy = 0_mps;//units::meters_per_second_t(Dir_Stick.GetX()*30_mps);
+        
+        theta = units::radians_per_second_t(PI*Rot_Stick.GetX());
+        auto states = m_kinematics.ToSwerveModuleStates(frc::ChassisSpeeds{0_mps,0_mps,theta});
 
-        auto [fl,fr,bl,br] = states;
+        fl = states[0];
+        fr = states[1];
+        rr = states[2];
+        rl = states[3];
 
-        fl = fl.Optimize(fl,units::radian_t((double)FLSteer.GetSensorCollection().GetPulseWidthPosition()/4096)); //optimizes motion
+        //fl = fl.Optimize(fl,units::radian_t((double)FLSteer.GetSensorCollection().GetPulseWidthPosition()/4096)); //optimizes motion
         
         FLDrive.Set(ControlMode::Velocity,(double)fl.speed);
-        
+        RLSteer.Set(ControlMode::Position,((double)rl.angle.Degrees()/180*4096.0));
+        //RLSteer.Set(ControlMode::Position,(double)IntakeTimer.Get()*64);
+        //RLDrive.Set(ControlMode::PercentOutput,(double)rl.speed/30);
         
 
 
@@ -202,8 +219,9 @@ private:
     frc::PneumaticsControlModule PCM;
 
 
+    //length 19.0
+    //width  18.875
 
-    
     //` Locations for the swerve drive modules relative to the robot center.
     const frc::Translation2d m_frontLeftLocation{0.381_m, 0.381_m};
     const frc::Translation2d m_frontRightLocation{0.381_m, -0.381_m};
