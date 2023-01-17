@@ -115,10 +115,22 @@ public:
           //sprintf(str,"PID:%4.2f",PID.Calculate((ahrs->GetRoll()-GyroOffset)/90, 0));
             sprintf(str,"Theta:%4.2f",theta);
          frc::SmartDashboard::PutString("DB/String 1",str);
-          sprintf(str,"GyroPitch:%4.2f",Rot_Stick.GetX());
-         frc::SmartDashboard::PutString("DB/String 2",str);
-		   sprintf(str,"Angle:%4.2f",theta/PI*4096);
+            sprintf(str,"Encoder:%4.2f",(double)((rl.angle.Degrees()/360)*4096.0));
+        frc::SmartDashboard::PutString("DB/String 2",str);
+          sprintf(str,"RotStick:%4.2f",Rot_Stick.GetX());
          frc::SmartDashboard::PutString("DB/String 3",str);
+             sprintf(str,"DirStick:%4.2f",Dir_Stick.GetX());
+         frc::SmartDashboard::PutString("DB/String 4",str);
+		
+            sprintf(str,"RL:%4.2f S:%4.2f",(double)rl.angle.Degrees(),rl.speed);
+         frc::SmartDashboard::PutString("DB/String 6",str);
+         sprintf(str,"RR A:%4.2f S:%4.2f",(double)rr.angle.Degrees(),rr.speed);
+         frc::SmartDashboard::PutString("DB/String 7",str);
+         sprintf(str,"Fl A:%4.2f S:%4.2f",(double)fl.angle.Degrees(),fl.speed);
+         frc::SmartDashboard::PutString("DB/String 8",str);
+         sprintf(str,"FR A:%4.2f S:%4.2f",(double)fr.angle.Degrees(),fr.speed);
+         frc::SmartDashboard::PutString("DB/String 9",str);
+
 		 //  frc::SmartDashboard::PutNumber("DB/LED 0",light);
           // frc::SmartDashboard::PutNumber("DB/LED 1",Shooter_On);
 
@@ -147,10 +159,12 @@ public:
         
     }
 
-    int i = 0;
+    
+    const units::radians_per_second_t MAX_ANGULAR_VELOCITY = 1.5*2_rad_per_s*PI;
+    const units::meters_per_second_t MAX_LINEAR_VELOCITY = 5_mps;
     units::meters_per_second_t vx,vy = 0_mps;
     units::radians_per_second_t theta;
-
+ 
     void TeleopPeriodic() override
     {
 
@@ -160,22 +174,22 @@ public:
             Initialized=1;
         }
         
+        vx = units::meters_per_second_t(Dir_Stick.GetY() * MAX_LINEAR_VELOCITY);
+        vy = units::meters_per_second_t(Dir_Stick.GetX() * MAX_LINEAR_VELOCITY);
         
-        //vx = 1_mps;//units::meters_per_second_t(Dir_Stick.GetY()*30_mps);
-        //vy = 0_mps;//units::meters_per_second_t(Dir_Stick.GetX()*30_mps);
-        
-        theta = units::radians_per_second_t(PI*Rot_Stick.GetX());
-        auto states = m_kinematics.ToSwerveModuleStates(frc::ChassisSpeeds{0_mps,0_mps,theta});
+        theta = units::radians_per_second_t(Rot_Stick.GetX() * MAX_ANGULAR_VELOCITY);
+        auto states = m_kinematics.ToSwerveModuleStates(frc::ChassisSpeeds{vx,vy,theta});
 
         fl = states[0];
         fr = states[1];
         rr = states[2];
         rl = states[3];
 
-        //fl = fl.Optimize(fl,units::radian_t((double)FLSteer.GetSensorCollection().GetPulseWidthPosition()/4096)); //optimizes motion
+        rl = rl.Optimize(rl,units::radian_t((double)(RLSteer.GetSensorCollection().GetPulseWidthPosition()*(PI)/4096))); //optimizes motion
         
-        FLDrive.Set(ControlMode::Velocity,(double)fl.speed);
-        RLSteer.Set(ControlMode::Position,((double)rl.angle.Degrees()/180*4096.0));
+        //RLDrive.Set(ControlMode::PercentOutput,(double)fl.speed);
+        RLSteer.Set(ControlMode::Position,((double)((rl.angle.Degrees()/180)*4096.0)));
+        
         //RLSteer.Set(ControlMode::Position,(double)IntakeTimer.Get()*64);
         //RLDrive.Set(ControlMode::PercentOutput,(double)rl.speed/30);
         
