@@ -59,7 +59,7 @@ int TankFull = 0;
 #define ENCODER_RES_FR 4096//4154.0 //4076.0 //4180.0
 #define ENCODER_RES_RR 4096 //4162.0 //4175.0 //4180.0
 
-#define PVALUE 0.15
+#define PVALUE .7 //0.15
 #define DVALUE 0.0
 #define IVALUE 0.0
 
@@ -115,24 +115,27 @@ public:
           //sprintf(str,"PID:%4.2f",PID.Calculate((ahrs->GetRoll()-GyroOffset)/90, 0));
             sprintf(str,"Theta:%4.2f",theta);
          frc::SmartDashboard::PutString("DB/String 1",str);
-            sprintf(str,"Encoder:%4.2f",(double)((rl.angle.Degrees()/360)*4096.0));
+            sprintf(str,"Encoder:%4.2f",(double)(FLSteer.GetSensorCollection().GetPulseWidthPosition()*(360/4096)));
         frc::SmartDashboard::PutString("DB/String 2",str);
           sprintf(str,"RotStick:%4.2f",Rot_Stick.GetX());
          frc::SmartDashboard::PutString("DB/String 3",str);
              sprintf(str,"DirStick:%4.2f",Dir_Stick.GetX());
          frc::SmartDashboard::PutString("DB/String 4",str);
 		
-            sprintf(str,"RL:%4.2f S:%4.2f",(double)rl.angle.Degrees(),rl.speed);
+            sprintf(str,"RL:%4.2f S:%4.2f",(double)-rl.angle.Degrees(),rl.speed);
          frc::SmartDashboard::PutString("DB/String 6",str);
-         sprintf(str,"RR A:%4.2f S:%4.2f",(double)rr.angle.Degrees(),rr.speed);
+         sprintf(str,"RR A:%4.2f S:%4.2f",(double)-rr.angle.Degrees(),rr.speed);
          frc::SmartDashboard::PutString("DB/String 7",str);
-         sprintf(str,"Fl A:%4.2f S:%4.2f",(double)fl.angle.Degrees(),fl.speed);
+         sprintf(str,"Fl A:%4.2f S:%4.2f",(double)-fl.angle.Degrees(),fl.speed);
          frc::SmartDashboard::PutString("DB/String 8",str);
-         sprintf(str,"FR A:%4.2f S:%4.2f",(double)fr.angle.Degrees(),fr.speed);
+         sprintf(str,"FR A:%4.2f S:%4.2f",(double)-fr.angle.Degrees(),fr.speed);
          frc::SmartDashboard::PutString("DB/String 9",str);
 
 		 //  frc::SmartDashboard::PutNumber("DB/LED 0",light);
           // frc::SmartDashboard::PutNumber("DB/LED 1",Shooter_On);
+
+        //vx = units::meters_per_second_t(frc::SmartDashboard::GetNumber("DB/String 0",0));
+        //vy = units::meters_per_second_t(frc::SmartDashboard::GetNumber("DB/String 5",0));
 
         }
         gUpdateCount--;
@@ -159,11 +162,11 @@ public:
         
     }
 
-    
-    const units::radians_per_second_t MAX_ANGULAR_VELOCITY = 1.5*2_rad_per_s*PI;
+    //wpi::array<frc::SwerveModuleState, 4U>  states;   
+    const units::radians_per_second_t MAX_ANGULAR_VELOCITY = 2_rad_per_s*PI;
     const units::meters_per_second_t MAX_LINEAR_VELOCITY = 5_mps;
     units::meters_per_second_t vx,vy = 0_mps;
-    units::radians_per_second_t theta;
+    units::radians_per_second_t theta = 0_rad_per_s;
  
     void TeleopPeriodic() override
     {
@@ -177,7 +180,8 @@ public:
         vx = units::meters_per_second_t(Dir_Stick.GetY() * MAX_LINEAR_VELOCITY);
         vy = units::meters_per_second_t(Dir_Stick.GetX() * MAX_LINEAR_VELOCITY);
         
-        theta = units::radians_per_second_t(Rot_Stick.GetX() * MAX_ANGULAR_VELOCITY);
+        //theta = units::radians_per_second_t(Rot_Stick.GetX() * MAX_ANGULAR_VELOCITY);
+        theta = 0_rad_per_s;
         auto states = m_kinematics.ToSwerveModuleStates(frc::ChassisSpeeds{vx,vy,theta});
 
         fl = states[0];
@@ -185,16 +189,28 @@ public:
         rr = states[2];
         rl = states[3];
 
-        rl = rl.Optimize(rl,units::radian_t((double)(RLSteer.GetSensorCollection().GetPulseWidthPosition()*(PI)/4096))); //optimizes motion
+        m_kinematics.DesaturateWheelSpeeds(&states, MAX_LINEAR_VELOCITY);
         
+        fl = rl.Optimize(fl,units::degree_t((double)(FLSteer.GetSensorCollection().GetPulseWidthPosition()*(360/4096)))); //optimizes motion
+        fr = rl.Optimize(fr,units::degree_t((double)(FRSteer.GetSensorCollection().GetPulseWidthPosition()*(360/4096)))); //optimizes motion
+        rr = rr.Optimize(rr,units::degree_t((double)(RRSteer.GetSensorCollection().GetPulseWidthPosition()*(360/4096)))); //optimizes motion
+        rl = rl.Optimize(rl,units::degree_t((double)(RLSteer.GetSensorCollection().GetPulseWidthPosition()*(360/4096)))); //optimizes motion
+        //`check header of optimize
+
+
         //RLDrive.Set(ControlMode::PercentOutput,(double)fl.speed);
-        RLSteer.Set(ControlMode::Position,((double)((rl.angle.Degrees()/180)*4096.0)));
+        FLSteer.Set(ControlMode::Position,((double)((-fl.angle.Degrees()/360)*4096.0)));
+        FRSteer.Set(ControlMode::Position,((double)((-fr.angle.Degrees()/360)*4096.0)));
+        RLSteer.Set(ControlMode::Position,((double)((-rl.angle.Degrees()/360)*4096.0)));
+        RRSteer.Set(ControlMode::Position,((double)((-rr.angle.Degrees()/360)*4096.0)));
         
+        //RRSteer.Set(ControlMode::Position, Dir_Stick.GetX()*4096);
+
         //RLSteer.Set(ControlMode::Position,(double)IntakeTimer.Get()*64);
         //RLDrive.Set(ControlMode::PercentOutput,(double)rl.speed/30);
         
 
-
+        
         ReadGyro(); 
 
         UpdateDriverScreen(); 
