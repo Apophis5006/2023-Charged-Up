@@ -22,9 +22,6 @@
 
 //#include <cmath>
 
-
-#include <frc/PneumaticsControlModule.h>
-#include <frc/Solenoid.h>
 #include <frc/smartdashboard/SmartDashboard.h>
 #include "ahrs.h" //https://www.kauailabs.com/public_files/navx-mxp/apidocs/c++/
 
@@ -41,39 +38,30 @@
 
 int Initialized = 0;
 
-//phematic motor
-int RotaryVal = 0;
-double TimeVal = 0.25;
-int TankFull = 0;
-
 //Joystick defines
 #define DIR 0
 #define ROT 1
 #define ARM 2
 
-
-
 #define PI 3.141592654
-#define ENCODER_RES_FL 4096 //4179.0 //4156.0 //4180.0
-#define ENCODER_RES_RL 4096 //4152.0 //4185.0 //4180.0
-#define ENCODER_RES_FR 4096//4154.0 //4076.0 //4180.0
-#define ENCODER_RES_RR 4096 //4162.0 //4175.0 //4180.0
 
 #define PVALUE .7 //0.15
 #define DVALUE 0.0
 #define IVALUE 0.0
 
-//Swerve CAN bus defines for steering motors
-#define FLS 4
-#define FRS 1
-#define RRS 3
-#define RLS 2
 //Swerve CAN bus defines for drive motors
 #define FLD 15
 #define FRD 12
 #define RLD 13
 #define RRD 14
-
+//Swerve CAN bus defines for steering motors
+#define FLS 11
+#define FRS 10
+#define RRS 9
+#define RLS 8
+//Arm & Intake
+#define ARM_ID 7
+#define INTAKE_ID 6
 
 
 int UpdateCount=0;    //counter to slow screen update so it does not take too many CPU cycles
@@ -82,7 +70,13 @@ double RobotPitch=0.0;
 double GyroOffset=0.0;
 int EncoderAct = 0;        //storage for actual angles of wheel from motor controller encoder feedback
 
-frc::SwerveModuleState fl,fr,rr,rl;
+int IntakeOn=0;
+int ArmPosition = 0;
+double ArmAngel = 0.0;
+
+//ArmStates
+
+frc::SwerveModuleState FLState,FRState,RRState,RLState;
 
                     //local variable for determining best way(least delta degrees) to meet rotatioanl target
 AHRS *ahrs;  //gyro
@@ -98,7 +92,6 @@ public:
     void RobotInit(void);
     
  
- 
     int gUpdateCount = 0; ///counter to be sure we only update drive screen every once in a while so it does not bog down the network
     void UpdateDriverScreen(void) //` fix later to display what you actually want
     {
@@ -110,9 +103,6 @@ public:
             gUpdateCount = 25; //delay between displays to not bog down system
    
            //Code for displaying swerve values
-         //sprintf(str,"Encoder:%d",SRX_Motor.GetSensorCollection().GetPulseWidthPosition(),(4096/360.0));
-         //frc::SmartDashboard::PutString("DB/String 0",str);
-          //sprintf(str,"PID:%4.2f",PID.Calculate((ahrs->GetRoll()-GyroOffset)/90, 0));
             sprintf(str,"Theta:%4.2f",theta);
          frc::SmartDashboard::PutString("DB/String 1",str);
             sprintf(str,"Encoder:%4.2f",(double)(FLSteer.GetSensorCollection().GetPulseWidthPosition()*(360/4096)));
@@ -122,13 +112,13 @@ public:
              sprintf(str,"DirStick:%4.2f",Dir_Stick.GetX());
          frc::SmartDashboard::PutString("DB/String 4",str);
 		
-            sprintf(str,"RL:%4.2f S:%4.2f",(double)-rl.angle.Degrees(),rl.speed);
+            sprintf(str,"RL:%4.2f S:%4.2f",(double)-RLState.angle.Degrees(),RLState.speed);
          frc::SmartDashboard::PutString("DB/String 6",str);
-         sprintf(str,"RR A:%4.2f S:%4.2f",(double)-rr.angle.Degrees(),rr.speed);
+         sprintf(str,"RR A:%4.2f S:%4.2f",(double)-RRState.angle.Degrees(),RRState.speed);
          frc::SmartDashboard::PutString("DB/String 7",str);
-         sprintf(str,"Fl A:%4.2f S:%4.2f",(double)-fl.angle.Degrees(),fl.speed);
+         sprintf(str,"Fl A:%4.2f S:%4.2f",(double)-FLState.angle.Degrees(),FLState.speed);
          frc::SmartDashboard::PutString("DB/String 8",str);
-         sprintf(str,"FR A:%4.2f S:%4.2f",(double)-fr.angle.Degrees(),fr.speed);
+         sprintf(str,"FR A:%4.2f S:%4.2f",(double)-FRState.angle.Degrees(),FRState.speed);
          frc::SmartDashboard::PutString("DB/String 9",str);
 
 		 //  frc::SmartDashboard::PutNumber("DB/LED 0",light);
@@ -141,8 +131,6 @@ public:
         gUpdateCount--;
     } // End UpdateDriverScreen
 	
-     
-
     void ReadGyro(void) {
 		RobotAngle = ahrs->GetYaw();
         
@@ -162,12 +150,7 @@ public:
         
     }
 
-    //wpi::array<frc::SwerveModuleState, 4U>  states;   
-    const units::radians_per_second_t MAX_ANGULAR_VELOCITY = 2_rad_per_s*PI;
-    const units::meters_per_second_t MAX_LINEAR_VELOCITY = 5_mps;
-    units::meters_per_second_t vx,vy = 0_mps;
-    units::radians_per_second_t theta = 0_rad_per_s;
- 
+
     void TeleopPeriodic() override
     {
 
@@ -177,80 +160,92 @@ public:
             Initialized=1;
         }
         
-        vx = units::meters_per_second_t(Dir_Stick.GetY() * MAX_LINEAR_VELOCITY);
-        vy = units::meters_per_second_t(Dir_Stick.GetX() * MAX_LINEAR_VELOCITY);
+        vx = Dir_Stick.GetY() * MAX_LINEAR_VELOCITY;
+        vy = Dir_Stick.GetX() * MAX_LINEAR_VELOCITY;
         
         //theta = units::radians_per_second_t(Rot_Stick.GetX() * MAX_ANGULAR_VELOCITY);
         theta = 0_rad_per_s;
-        auto states = m_kinematics.ToSwerveModuleStates(frc::ChassisSpeeds{vx,vy,theta});
 
-        fl = states[0];
-        fr = states[1];
-        rr = states[2];
-        rl = states[3];
+        Drive();
 
-        m_kinematics.DesaturateWheelSpeeds(&states, MAX_LINEAR_VELOCITY);
-        
-        fl = rl.Optimize(fl,units::degree_t((double)(FLSteer.GetSensorCollection().GetPulseWidthPosition()*(360/4096)))); //optimizes motion
-        fr = rl.Optimize(fr,units::degree_t((double)(FRSteer.GetSensorCollection().GetPulseWidthPosition()*(360/4096)))); //optimizes motion
-        rr = rr.Optimize(rr,units::degree_t((double)(RRSteer.GetSensorCollection().GetPulseWidthPosition()*(360/4096)))); //optimizes motion
-        rl = rl.Optimize(rl,units::degree_t((double)(RLSteer.GetSensorCollection().GetPulseWidthPosition()*(360/4096)))); //optimizes motion
-        //`check header of optimize
-
-
-        //RLDrive.Set(ControlMode::PercentOutput,(double)fl.speed);
-        FLSteer.Set(ControlMode::Position,((double)((-fl.angle.Degrees()/360)*4096.0)));
-        FRSteer.Set(ControlMode::Position,((double)((-fr.angle.Degrees()/360)*4096.0)));
-        RLSteer.Set(ControlMode::Position,((double)((-rl.angle.Degrees()/360)*4096.0)));
-        RRSteer.Set(ControlMode::Position,((double)((-rr.angle.Degrees()/360)*4096.0)));
-        
-        //RRSteer.Set(ControlMode::Position, Dir_Stick.GetX()*4096);
-
-        //RLSteer.Set(ControlMode::Position,(double)IntakeTimer.Get()*64);
-        //RLDrive.Set(ControlMode::PercentOutput,(double)rl.speed/30);
-        
-
-        
         ReadGyro(); 
 
         UpdateDriverScreen(); 
 
     }
 
-        TalonSRX RLSteer = {RLS};
-    TalonSRX RRSteer = {RRS};
-    TalonSRX FRSteer = {FRS};
-    TalonSRX FLSteer = {FLS};
+
+    const units::radians_per_second_t MAX_ANGULAR_VELOCITY = 2_rad_per_s*PI;
+    const units::meters_per_second_t MAX_LINEAR_VELOCITY = 5_mps;
+    units::meters_per_second_t vx,vy = 0_mps;
+    units::radians_per_second_t theta = 0_rad_per_s;
+    wpi::array<frc::SwerveModuleState, 4U> SwerveStates;
+
+    void Drive(){
+        SwerveStates = m_kinematics.ToSwerveModuleStates(frc::ChassisSpeeds{vx,vy,theta});
+
+        FLState = SwerveStates[0];
+        FRState = SwerveStates[1];
+        RRState = SwerveStates[2];
+        RLState = SwerveStates[3];
+
+        m_kinematics.DesaturateWheelSpeeds(&SwerveStates, MAX_LINEAR_VELOCITY);
+        
+        //Optimizes based on the Encoder Position
+        FLState = RLState.Optimize(FLState,units::degree_t((double)(FLSteer.GetSensorCollection().GetPulseWidthPosition()*(360/4096)))); //optimizes motion
+        FRState = RLState.Optimize(FRState,units::degree_t((double)(FRSteer.GetSensorCollection().GetPulseWidthPosition()*(360/4096)))); //optimizes motion
+        RRState = RRState.Optimize(RRState,units::degree_t((double)(RRSteer.GetSensorCollection().GetPulseWidthPosition()*(360/4096)))); //optimizes motion
+        RLState = RLState.Optimize(RLState,units::degree_t((double)(RLSteer.GetSensorCollection().GetPulseWidthPosition()*(360/4096)))); //optimizes motion
+
+        //Steer Motor Position Output
+        FLSteer.Set(ControlMode::Position,((double)((-FLState.angle.Degrees()/360)*4096.0)));
+        FRSteer.Set(ControlMode::Position,((double)((-FRState.angle.Degrees()/360)*4096.0)));
+        RLSteer.Set(ControlMode::Position,((double)((-RLState.angle.Degrees()/360)*4096.0)));
+        RRSteer.Set(ControlMode::Position,((double)((-RRState.angle.Degrees()/360)*4096.0)));
+        //Drive Motor Power Output
+        FLDrive.Set(ControlMode::PercentOutput,(double)(FLState.speed/MAX_LINEAR_VELOCITY));
+        FRDrive.Set(ControlMode::PercentOutput,(double)(FRState.speed/MAX_LINEAR_VELOCITY));
+        RLDrive.Set(ControlMode::PercentOutput,(double)(RLState.speed/MAX_LINEAR_VELOCITY));
+        RRDrive.Set(ControlMode::PercentOutput,(double)(RRState.speed/MAX_LINEAR_VELOCITY));
+        
+        
+    }
+
+    void IntakeAndArm(){
+        //Handels Intake Control
+        if(IsAutonomousEnabled()){
+            //`write code for autonomous
+        }
+        else{
+            if(Dir_Stick.GetTrigger()) IntakeOn = 1;
+            else if(Dir_Stick.GetRawButton(2)) IntakeOn = -1;
+            else IntakeOn=0;
+        }
+        
+        //`add control of Arm Position
+
+        IntakeMotor.Set(ControlMode::PercentOutput,IntakeOn);
+        ArmMotor.Set(ControlMode::Position,ArmPosition);
+    }
 
     TalonFX RLDrive = {RLD};
     TalonFX FLDrive = {FLD};
     TalonFX FRDrive = {FRD};
     TalonFX RRDrive = {RRD};
 
+    TalonSRX RLSteer = {RLS};
+    TalonSRX RRSteer = {RRS};
+    TalonSRX FRSteer = {FRS};
+    TalonSRX FLSteer = {FLS};
+
+    TalonSRX ArmMotor = {ARM_ID};
+    TalonSRX IntakeMotor = {INTAKE_ID};
+
 private:
 
     frc::Joystick Rot_Stick{ROT};
     frc::Joystick Dir_Stick{DIR};
     frc::Joystick Arm_Stick{ARM};
-
-    TalonFX Falcon_Motor = {0};
-    TalonSRX SRX_Motor = {1};
-   
-
-    frc::Solenoid Rotary{frc::PneumaticsModuleType::CTREPCM,0}; //0 is a rotating pnuematic "motor"
-    frc::Solenoid Linear{frc::PneumaticsModuleType::CTREPCM,1}; //1 is a standard cylinder
-    
-    frc2::PIDController PID{1, 0, 0};
-
-   frc::Timer IntakeTimer;
-
-   // frc::DigitalInput ElevatorBottom{1};      
-   
-    frc::PneumaticsControlModule PCM;
-
-
-    //length 19.0
-    //width  18.875
 
     //` Locations for the swerve drive modules relative to the robot center.
     const frc::Translation2d m_frontLeftLocation{0.381_m, 0.381_m};
@@ -274,11 +269,8 @@ void Robot::RobotInit()
     Initialized = 1;
     ahrs = new AHRS(frc::SPI::Port::kMXP);
     
-
-    IntakeTimer.Start();
-    IntakeTimer.Reset();
      
-    FLSteer.ConfigSelectedFeedbackSensor(FeedbackDevice::PulseWidthEncodedPosition, 0, NOTIMEOUT);
+        FLSteer.ConfigSelectedFeedbackSensor(FeedbackDevice::PulseWidthEncodedPosition, 0, NOTIMEOUT);
 		FLSteer.SetSensorPhase(false);
 		FLSteer.ConfigNominalOutputForward(0.0f, TIMEOUT);
 		FLSteer.ConfigNominalOutputReverse(0.0f, TIMEOUT);
