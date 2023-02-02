@@ -176,13 +176,13 @@ public:
 
 
     const units::radians_per_second_t MAX_ANGULAR_VELOCITY = 2_rad_per_s*PI;
-    const units::meters_per_second_t MAX_LINEAR_VELOCITY = 5_mps;
+    const units::meters_per_second_t MAX_LINEAR_VELOCITY = 20_mps;
     units::meters_per_second_t vx,vy = 0_mps;
     units::radians_per_second_t theta = 0_rad_per_s;
-    wpi::array<frc::SwerveModuleState, 4U> SwerveStates;
+    //wpi::array<frc::SwerveModuleState, 4U> SwerveStates; //should have default value, breaks code if not
 
     void Drive(){
-        SwerveStates = m_kinematics.ToSwerveModuleStates(frc::ChassisSpeeds{vx,vy,theta});
+        static auto SwerveStates = m_kinematics.ToSwerveModuleStates(frc::ChassisSpeeds{vx,vy,theta});
 
         FLState = SwerveStates[0];
         FRState = SwerveStates[1];
@@ -248,10 +248,11 @@ private:
     frc::Joystick Arm_Stick{ARM};
 
     //` Locations for the swerve drive modules relative to the robot center.
-    const frc::Translation2d m_frontLeftLocation{0.381_m, 0.381_m};
-    const frc::Translation2d m_frontRightLocation{0.381_m, -0.381_m};
-    const frc::Translation2d m_backLeftLocation{-0.381_m, 0.381_m};
-    const frc::Translation2d m_backRightLocation{-0.381_m, -0.381_m};
+    //21.75015472 in (0.55245393 m) wheel to wheel
+    const frc::Translation2d m_frontLeftLocation{-10.875_in, 10.875_in};
+    const frc::Translation2d m_frontRightLocation{10.875_in, 10.875_in};
+    const frc::Translation2d m_backLeftLocation{-10.875_in, -10.875_in};
+    const frc::Translation2d m_backRightLocation{10.875_in, -10.875_in};
 
     frc::SwerveDriveKinematics<4> m_kinematics{m_frontLeftLocation, m_frontRightLocation, m_backLeftLocation,m_backRightLocation};
 };
