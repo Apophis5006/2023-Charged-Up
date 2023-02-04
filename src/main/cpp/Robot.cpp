@@ -50,18 +50,18 @@ int Initialized = 0;
 #define IVALUE 0.0
 
 //Swerve CAN bus defines for drive motors
-#define FLD 15
-#define FRD 12
-#define RLD 13
-#define RRD 14
+#define FLD 14
+#define FRD 13
+#define RLD 12
+#define RRD 15
 //Swerve CAN bus defines for steering motors
-#define FLS 11
-#define FRS 10
-#define RRS 9
-#define RLS 8
+#define RRS 6
+#define FRS 7
+#define FLS 10
+#define RLS 11
 //Arm & Intake
-#define ARM_ID 7
-#define INTAKE_ID 6
+#define ARM_ID 8
+#define INTAKE_ID 9
 
 
 int UpdateCount=0;    //counter to slow screen update so it does not take too many CPU cycles
@@ -176,13 +176,13 @@ public:
 
 
     const units::radians_per_second_t MAX_ANGULAR_VELOCITY = 2_rad_per_s*PI;
-    const units::meters_per_second_t MAX_LINEAR_VELOCITY = 20_mps;
+    const units::meters_per_second_t MAX_LINEAR_VELOCITY = 20.09_fps;
     units::meters_per_second_t vx,vy = 0_mps;
     units::radians_per_second_t theta = 0_rad_per_s;
     //wpi::array<frc::SwerveModuleState, 4U> SwerveStates; //should have default value, breaks code if not
 
     void Drive(){
-        static auto SwerveStates = m_kinematics.ToSwerveModuleStates(frc::ChassisSpeeds{vx,vy,theta});
+        auto SwerveStates = m_kinematics.ToSwerveModuleStates(frc::ChassisSpeeds{vx,vy,theta});
 
         FLState = SwerveStates[0];
         FRState = SwerveStates[1];
@@ -318,6 +318,7 @@ void Robot::RobotInit()
         //RLSteer.Set(ControlMode::Position, 0.0);
         //RLSteer.Set(ControlMode::Position, ClosestZero[RL]);
         RLSteer.ConfigClosedloopRamp(.3,TIMEOUT);
+        //RLSteer.SetNeutralMode(motorcontrol::NeutralMode::Coast); //`check if this is what we want 
  	    
         RRSteer.ConfigSelectedFeedbackSensor(FeedbackDevice::PulseWidthEncodedPosition, 0, NOTIMEOUT);	 
 		RRSteer.SetSensorPhase(false);
