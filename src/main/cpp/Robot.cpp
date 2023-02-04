@@ -13,6 +13,7 @@
 #include <frc/DigitalInput.h>
 #include <frc/TimedRobot.h>
 #include <frc/Timer.h>
+#include <frc/Preferences.h>
 #include <frc2/command/PIDCommand.h>
 #include <frc2/command/PIDSubsystem.h>
 
@@ -77,8 +78,8 @@ double ArmAngel = 0.0;
 //ArmStates
 
 frc::SwerveModuleState FLState,FRState,RRState,RLState;
+double FLZero,FRZero,RRZero,RLZero = 0;
 
-                    //local variable for determining best way(least delta degrees) to meet rotatioanl target
 AHRS *ahrs;  //gyro
 
 
@@ -111,7 +112,7 @@ public:
          frc::SmartDashboard::PutString("DB/String 3",str);
              sprintf(str,"DirStick:%4.2f",Dir_Stick.GetX());
          frc::SmartDashboard::PutString("DB/String 4",str);
-		
+
             sprintf(str,"RL:%4.2f S:%4.2f",(double)-RLState.angle.Degrees(),RLState.speed);
          frc::SmartDashboard::PutString("DB/String 6",str);
          sprintf(str,"RR A:%4.2f S:%4.2f",(double)-RRState.angle.Degrees(),RRState.speed);
@@ -174,6 +175,30 @@ public:
 
     }
 
+    void TestPeriodic() override{
+        if (!Initialized)
+        {
+            RobotInit(); 
+            Initialized=1;
+        }
+
+        ReadGyro();
+
+        UpdateDriverScreen();
+
+        if(Rot_Stick.GetTrigger()){ //Cal Swerve Zeros write
+            frc::Preferences::SetDouble("FLZero",FLZero);
+            frc::Preferences::SetDouble("FRZero",FRZero);
+            frc::Preferences::SetDouble("RLZero",RLZero);
+            frc::Preferences::SetDouble("RRZero",RRZero);            
+        }
+
+        FLZero = FLSteer.GetSensorCollection().GetPulseWidthPosition();
+        FRZero = FRSteer.GetSensorCollection().GetPulseWidthPosition();
+        RLZero = RLSteer.GetSensorCollection().GetPulseWidthPosition();
+        RRZero = RRSteer.GetSensorCollection().GetPulseWidthPosition(); 
+
+    }
 
     const units::radians_per_second_t MAX_ANGULAR_VELOCITY = 2_rad_per_s*PI;
     const units::meters_per_second_t MAX_LINEAR_VELOCITY = 20.09_fps;
@@ -198,10 +223,10 @@ public:
         RLState = RLState.Optimize(RLState,units::degree_t((double)(RLSteer.GetSensorCollection().GetPulseWidthPosition()*(360/4096)))); //optimizes motion
 
         //Steer Motor Position Output
-        FLSteer.Set(ControlMode::Position,((double)((-FLState.angle.Degrees()/360)*4096.0)));
-        FRSteer.Set(ControlMode::Position,((double)((-FRState.angle.Degrees()/360)*4096.0)));
-        RLSteer.Set(ControlMode::Position,((double)((-RLState.angle.Degrees()/360)*4096.0)));
-        RRSteer.Set(ControlMode::Position,((double)((-RRState.angle.Degrees()/360)*4096.0)));
+        FLSteer.Set(ControlMode::Position,(double)((-FLState.angle.Degrees()/360)*4096.0) + FLZero);
+        FRSteer.Set(ControlMode::Position,(double)((-FRState.angle.Degrees()/360)*4096.0) + FRZero);
+        RLSteer.Set(ControlMode::Position,(double)((-RLState.angle.Degrees()/360)*4096.0) + RLZero);
+        RRSteer.Set(ControlMode::Position,(double)((-RRState.angle.Degrees()/360)*4096.0) + RRZero);
         //Drive Motor Power Output
         FLDrive.Set(ControlMode::PercentOutput,(double)(FLState.speed/MAX_LINEAR_VELOCITY));
         FRDrive.Set(ControlMode::PercentOutput,(double)(FRState.speed/MAX_LINEAR_VELOCITY));
@@ -247,7 +272,7 @@ private:
     frc::Joystick Dir_Stick{DIR};
     frc::Joystick Arm_Stick{ARM};
 
-    //` Locations for the swerve drive modules relative to the robot center.
+    //Locations for the swerve drive modules relative to the robot center.
     //21.75015472 in (0.55245393 m) wheel to wheel
     const frc::Translation2d m_frontLeftLocation{-10.875_in, 10.875_in};
     const frc::Translation2d m_frontRightLocation{10.875_in, 10.875_in};
@@ -270,7 +295,13 @@ void Robot::RobotInit()
     Initialized = 1;
     ahrs = new AHRS(frc::SPI::Port::kMXP);
     
-     
+    //Steer Zeros
+    FLZero = frc::Preferences::GetDouble("FLZero",0);
+    FRZero = frc::Preferences::GetDouble("FRZero",0);
+    RLZero = frc::Preferences::GetDouble("RLZero",0);
+    RRZero = frc::Preferences::GetDouble("RRZero",0);
+
+    {//FLSteer
         FLSteer.ConfigSelectedFeedbackSensor(FeedbackDevice::PulseWidthEncodedPosition, 0, NOTIMEOUT);
 		FLSteer.SetSensorPhase(false);
 		FLSteer.ConfigNominalOutputForward(0.0f, TIMEOUT);
@@ -286,8 +317,8 @@ void Robot::RobotInit()
         FLSteer.ConfigClosedloopRamp(.3,TIMEOUT);
         //FLSteer.Set(ControlMode::Position, ClosestZero[FL]);
        // FLSteer.SetSelectedSensorPosition(0,0,TIMEOUT);
-
-        
+    }
+    {//FRSteer    
         FRSteer.ConfigSelectedFeedbackSensor(FeedbackDevice::PulseWidthEncodedPosition, 0, NOTIMEOUT);	 
 		FRSteer.SetSensorPhase(false);
 	    FRSteer.ConfigNominalOutputForward(0.0f, TIMEOUT);
@@ -302,7 +333,8 @@ void Robot::RobotInit()
         FRSteer.ConfigFeedbackNotContinuous(0,TIMEOUT);
         //FRSteer.Set(ControlMode::Position, ClosestZero[FR]);
         FRSteer.ConfigClosedloopRamp(.3,TIMEOUT);
-      
+    }
+    {//RLSteer
         RLSteer.ConfigSelectedFeedbackSensor(FeedbackDevice::PulseWidthEncodedPosition, 0, NOTIMEOUT);	
 		RLSteer.SetSensorPhase(false);
 	    RLSteer.ConfigNominalOutputForward(0.0f, TIMEOUT);
@@ -319,7 +351,8 @@ void Robot::RobotInit()
         //RLSteer.Set(ControlMode::Position, ClosestZero[RL]);
         RLSteer.ConfigClosedloopRamp(.3,TIMEOUT);
         //RLSteer.SetNeutralMode(motorcontrol::NeutralMode::Coast); //`check if this is what we want 
- 	    
+    }
+    {//RRSteer    
         RRSteer.ConfigSelectedFeedbackSensor(FeedbackDevice::PulseWidthEncodedPosition, 0, NOTIMEOUT);	 
 		RRSteer.SetSensorPhase(false);
 	    RRSteer.ConfigNominalOutputForward(0.0f, TIMEOUT);
@@ -334,9 +367,9 @@ void Robot::RobotInit()
         RRSteer.ConfigFeedbackNotContinuous(0,TIMEOUT);
         //RRSteer.Set(ControlMode::Position, ClosestZero[RR]);
 		RRSteer.ConfigClosedloopRamp(.3,TIMEOUT);
-         
+    }     
 
-        
+    {//RLDrive    
         RLDrive.GetSensorCollection().SetIntegratedSensorPosition(0);
         RLDrive.ConfigSelectedFeedbackSensor(FeedbackDevice::IntegratedSensor, 0, NOTIMEOUT);	 // PIDLoop=0 
 		RLDrive.SetSensorPhase(false);
@@ -350,8 +383,8 @@ void Robot::RobotInit()
 		RLDrive.Config_kD(0, 0.0, TIMEOUT);
         RLDrive.ConfigClosedloopRamp(.3,TIMEOUT);
         RLDrive.ConfigSupplyCurrentLimit(SupplyCurrentLimitConfiguration(true,40.0,40.0,.1),TIMEOUT);
-        
-
+    }    
+    {//RRDrive
 		RRDrive.GetSensorCollection().SetIntegratedSensorPosition(0);
         RRDrive.ConfigSelectedFeedbackSensor(FeedbackDevice::IntegratedSensor, 0, NOTIMEOUT);	 
 		RRDrive.SetSensorPhase(false);
@@ -366,7 +399,8 @@ void Robot::RobotInit()
 		RRDrive.Set(ControlMode::Position, 0.0);
         RRDrive.ConfigClosedloopRamp(.3,TIMEOUT);
         RRDrive.ConfigSupplyCurrentLimit(SupplyCurrentLimitConfiguration(true,40.0,40.0,.1),TIMEOUT);
-
+    }
+    {//FRDrive
         FRDrive.GetSensorCollection().SetIntegratedSensorPosition(0);
         FRDrive.ConfigSelectedFeedbackSensor(FeedbackDevice::IntegratedSensor, 0, NOTIMEOUT);	 
 		FRDrive.SetSensorPhase(false);
@@ -381,7 +415,8 @@ void Robot::RobotInit()
 		FRDrive.Set(ControlMode::Position, 0.0);
         FRDrive.ConfigClosedloopRamp(.3,TIMEOUT);
         FRDrive.ConfigSupplyCurrentLimit(SupplyCurrentLimitConfiguration(true,40.0,40.0,.1),TIMEOUT);
-
+    }
+    {//FLDrive
 		FLDrive.GetSensorCollection().SetIntegratedSensorPosition(0);
         FLDrive.ConfigSelectedFeedbackSensor(FeedbackDevice::IntegratedSensor, 0, NOTIMEOUT);	
 		FLDrive.SetSensorPhase(false);
@@ -396,7 +431,7 @@ void Robot::RobotInit()
 		FLDrive.Set(ControlMode::Position, 0.0);
         FLDrive.ConfigClosedloopRamp(.3,TIMEOUT);
         FLDrive.ConfigSupplyCurrentLimit(SupplyCurrentLimitConfiguration(true,40.0,40.0,.1),TIMEOUT);
-    
+    }
     
     ResetGyro();
     
