@@ -6,6 +6,7 @@
 /*----------------------------------------------------------------------------*/
 
 #include <frc/Joystick.h>
+#include <frc/PS4Controller.h>
 #include <frc/TimedRobot.h>
 #include <frc/DriverStation.h>
 #include <frc/Preferences.h>
@@ -15,7 +16,7 @@
 #include <frc/smartdashboard/SmartDashboard.h>
 #include "AHRS.h"
 #define PVALUE 2.00
-#define IVALUE .000
+#define IVALUE 0.000
 #define DVALUE 500000.00
 
 #define START 10
@@ -133,6 +134,9 @@ int	GS_AutoArray_Initial[NUMAUTOLINES][8]={
 #define ROT 1
 #define ARM 2
 
+//PS4 Controller defines
+#define OP_PS4 2
+
 //-------------------CAN BUS DEFINES---------------
 //Swerve CAN bus defines for steering motors
 #define RRS 6
@@ -145,10 +149,10 @@ int	GS_AutoArray_Initial[NUMAUTOLINES][8]={
 #define RLD 12
 #define RRD 15
 
+#define WRIST 9
+#define SHOULDER 1
+#define INTAKE 8
 
-//CAN Bus defines for intake motor
-#define INTAKE 10
-#define INTAKE_SPEED -0.45
 
 //For swerve code, define motor data locations in the arrays
 #define RR 0
@@ -204,6 +208,18 @@ int StartingLocation=0;
 #define BLUE3 (frc::DriverStation::kBlue*10+3)
 #define UNKNOWN 0
 
+//Arm Positions
+#define ARM_DEFAULT 0
+#define HP_PICKUP 1
+#define FLOOR_PICKUP 2
+#define MID_SCORE 3 
+#define TOP_SCORE 4
+#define TRAVEL_POS 5
+int ArmPosition = ARM_DEFAULT;
+#define CONE 1
+#define CUBE 0
+int ObjectType = 0;
+
 class Robot : public frc::TimedRobot {
   public:
     void AutonomousPeriodic() override {
@@ -246,7 +262,7 @@ class Robot : public frc::TimedRobot {
 
 		UpdateDriverScreen();
   }
-  void TeleopPeriodic() override {
+    void TeleopPeriodic() override {
 	  int i;
 		if(RobotInitialized==0) {
 			RobotInit();
@@ -256,23 +272,14 @@ class Robot : public frc::TimedRobot {
 		}
 		RobotInitialized=100;
 	    ReadGyro();
-		TrackRobot();			//Track the Robot's FL wheel X,Y position around the field
+		//TrackRobot();			//Track the Robot's FL wheel X,Y position around the field
 	    SwerveControl(); 
 		SwerveDrive();
 
 		UpdateDriverScreen();
 
-		//Intake.Set(ControlMode::PercentOutput, arm_stick.GetY());
-		if(arm_stick.GetTrigger()){
-			//`Intake.Set(ControlMode::PercentOutput, INTAKE_SPEED*13.0/frc::DriverStation::GetInstance().GetBatteryVoltage());
-		}
-		else if(arm_stick.GetY()>0.5){
-			//`Intake.Set(ControlMode::PercentOutput, -(INTAKE_SPEED));
-		}
-		else
-		{
-			//`Intake.Set(ControlMode::PercentOutput, 0);
-		}
+		JoystickControl(); //` add way to switch between
+
   }
 
 	void TestPeriodic() override{
@@ -303,11 +310,50 @@ class Robot : public frc::TimedRobot {
         FLZero = FLSteer.GetSensorCollection().GetPulseWidthPosition();
         FRZero = FRSteer.GetSensorCollection().GetPulseWidthPosition();
         RLZero = RLSteer.GetSensorCollection().GetPulseWidthPosition();
-        RRZero = RRSteer.GetSensorCollection().GetPulseWidthPosition(); 
+        RRZero = RRSteer.GetSensorCollection().GetPulseWidthPosition();
+
 
     }
 
-	  void UpdateDriverScreen(){
+	void JoystickControl(){
+		//Intake.Set(ControlMode::PercentOutput, arm_stick.GetY());
+		if(arm_stick.GetRawButton(2)){ //outake
+			Intake.Set(ControlMode::PercentOutput, .5);
+		}
+		else if(arm_stick.GetTrigger()){//intake
+			Intake.Set(ControlMode::PercentOutput, -1.0);
+		}
+		else
+		{
+			Intake.Set(ControlMode::PercentOutput, 0);
+		}
+
+        Wrist.Set(ControlMode::PercentOutput, arm_stick.GetX());
+		Shoulder.Set(ControlMode::PercentOutput, -arm_stick.GetY());
+	}
+
+	void Ps4Control(){
+		//Button Mappings
+		
+		//Arm Positions
+		if(OpController.GetSquareButton()) ArmPosition = HP_PICKUP; 
+		if(OpController.GetRightX()) ArmPosition = FLOOR_PICKUP;
+		else if(OpController.GetCircleButton()) ArmPosition = MID_SCORE;
+		else if(OpController.GetTriangleButton()) ArmPosition = TOP_SCORE;
+		else if(OpController.GetR1Button()) ArmPosition = TRAVEL_POS;
+		else ArmPosition = ARM_DEFAULT;
+
+		//cone cube
+		if(OpController.GetR2Button()) ObjectType = CUBE;
+		if(OpController.GetL2Button()) {
+			ObjectType = CONE;
+		}
+
+
+
+	}
+
+	void UpdateDriverScreen(){
         if(!UpdateCount) {
 			UpdateCount=25; //delay between displays to not bog down system
 			
@@ -351,7 +397,9 @@ class Robot : public frc::TimedRobot {
 		}else UpdateCount--;
 	}
 
-		void UpdateScreenAuto(int Command, int AutoLine,double AutoX, double AutoY, double MaxPower, int Orientation){
+
+
+	void UpdateScreenAuto(int Command, int AutoLine,double AutoX, double AutoY, double MaxPower, int Orientation){
        char str[40];
 	
 					if(!UpdateCount) {
@@ -396,9 +444,9 @@ class Robot : public frc::TimedRobot {
 			if(SWRVX<-1.0) SWRVX=-1.0;
 		}else{ //Teleop Mode
 			SWRVY=-dir_stick.GetY();
-			if (fabs(SWRVY)<0.1) SWRVY=0.0;
+			if (fabs(SWRVY)<0.05) SWRVY=0.0;
 			SWRVX=dir_stick.GetX();
-			if (fabs(SWRVX)<0.1) SWRVX=0.0;
+			if (fabs(SWRVX)<0.05) SWRVX=0.0;
 			SWRVZ=rot_stick.GetX();
 			if(dir_stick.GetTrigger()) FieldCentric=0;
 			else FieldCentric=1;	  
@@ -498,7 +546,7 @@ class Robot : public frc::TimedRobot {
                //SWRVZ=pow(3*SWRVZ,3);
 		}else{
 
-			if (fabs(SWRVZ)<0.1){
+			if (fabs(SWRVZ)<0.05){ //rot_stick deadzone
 				SWRVZ=0.0;
 			}else{
 				// if(rot_stick.GetRawButton(8)) { // button 8 for fast rotation
@@ -538,10 +586,10 @@ class Robot : public frc::TimedRobot {
 		}
 
         //send the drive motor speeds to the motor controllers
-		// FLDrive.Set(ControlMode::PercentOutput,-CVTSpeed(SpeedPolarity[FL]*-ModSpd[FL]));
-		// FRDrive.Set(ControlMode::PercentOutput,CVTSpeed(SpeedPolarity[FR]*-ModSpd[FR]));
-		// RLDrive.Set(ControlMode::PercentOutput,-CVTSpeed(SpeedPolarity[RL]*-ModSpd[RL]));
-		// RRDrive.Set(ControlMode::PercentOutput,CVTSpeed(SpeedPolarity[RR]*-ModSpd[RR]));
+		FLDrive.Set(ControlMode::PercentOutput,-CVTSpeed(SpeedPolarity[FL]*-ModSpd[FL]));
+		FRDrive.Set(ControlMode::PercentOutput,CVTSpeed(SpeedPolarity[FR]*-ModSpd[FR]));
+		RLDrive.Set(ControlMode::PercentOutput,-CVTSpeed(SpeedPolarity[RL]*-ModSpd[RL]));
+		RRDrive.Set(ControlMode::PercentOutput,CVTSpeed(SpeedPolarity[RR]*-ModSpd[RR]));
 		FLSteer.Set(ControlMode::Position, -(TargetDir[FL]/360.0)*4096);
 	    FRSteer.Set(ControlMode::Position, -(TargetDir[FR]/360.0)*4096);
 	    RRSteer.Set(ControlMode::Position, -(TargetDir[RR]/360.0)*4096);
@@ -595,6 +643,30 @@ class Robot : public frc::TimedRobot {
 		return(result/772.5); //678.44);
 	}
 
+	void ArmControl(){
+		switch (ArmPosition)
+		{
+		case HP_PICKUP:
+			/* code */
+			break;
+		case FLOOR_PICKUP:
+
+			break;
+		case MID_SCORE:
+
+			break;
+		case TOP_SCORE:
+
+			break;
+		case TRAVEL_POS:
+
+			break;
+		case ARM_DEFAULT:
+		default:
+			
+			break;
+		}
+	}
 
   	//AUTONOMOUS DRIVING STATE MACHINE
     void AutoStateMachine(void){
@@ -742,6 +814,8 @@ class Robot : public frc::TimedRobot {
   frc::Joystick dir_stick{DIR};  //swerve direction
   frc::Joystick rot_stick{ROT};  //swerve rotation
   frc::Joystick arm_stick{ARM};  //arm functions
+
+  frc::PS4Controller OpController{OP_PS4};
   
   TalonFX FLDrive = {FLD};
   TalonFX FRDrive = {FRD};
@@ -751,6 +825,11 @@ class Robot : public frc::TimedRobot {
   TalonSRX FRSteer = {FRS};
   TalonSRX RLSteer = {RLS};
   TalonSRX RRSteer = {RRS};
+
+  TalonSRX Wrist = {WRIST};
+  TalonSRX Intake = {INTAKE};
+  TalonFX  Shoulder = {SHOULDER};
+
 //   TalonSRX Intake = {INTAKE};
   //frc::DigitalInput BallSensor{0};
   //frc::ADXRS450_Gyro Gyro; //small gyro
@@ -890,18 +969,48 @@ class Robot : public frc::TimedRobot {
 		FLDrive.SetNeutralMode(NeutralMode::Coast);
 		FLDrive.Set(ControlMode::PercentOutput, 0.0);
 
-		// Intake.ConfigSelectedFeedbackSensor(FeedbackDevice::PulseWidthEncodedPosition, 0, NOTIMEOUT);
-        // Intake.ConfigSelectedFeedbackSensor(FeedbackDevice::IntegratedSensor, 0, NOTIMEOUT);	
-		// Intake.SetSensorPhase(false);
-	    // Intake.ConfigNominalOutputForward(0.0f, TIMEOUT);
-		// Intake.ConfigNominalOutputReverse(0.0f, TIMEOUT);
-	    // Intake.ConfigPeakOutputForward(+12.0f, TIMEOUT);
-	 	// Intake.ConfigPeakOutputReverse(-12.0f, TIMEOUT);
-		// Intake.SelectProfileSlot(0, 0);
-		// Intake.Config_kP(0, 0.5, TIMEOUT);
-		// Intake.Config_kI(0, 0.0, TIMEOUT);
-		// Intake.Config_kD(0, 0.0, TIMEOUT);
-		// Intake.Set(ControlMode::Position, 0.0);
+		Shoulder.GetSensorCollection().SetIntegratedSensorPosition(0);
+        Shoulder.ConfigSelectedFeedbackSensor(FeedbackDevice::IntegratedSensor, 0, NOTIMEOUT);	
+		Shoulder.SetSensorPhase(false);
+	    Shoulder.ConfigNominalOutputForward(0.0f, TIMEOUT);
+		Shoulder.ConfigNominalOutputReverse(0.0f, TIMEOUT);
+	    Shoulder.ConfigPeakOutputForward(+12.0f, TIMEOUT);
+	 	Shoulder.ConfigPeakOutputReverse(-12.0f, TIMEOUT);
+		Shoulder.SelectProfileSlot(0, 0);
+		Shoulder.Config_kP(0, 0.5, TIMEOUT);
+		Shoulder.Config_kI(0, 0.0, TIMEOUT);
+		Shoulder.Config_kD(0, 0.0, TIMEOUT);
+		Shoulder.SetNeutralMode(NeutralMode::Brake);
+		Shoulder.Set(ControlMode::PercentOutput, 0.0);
+
+		Wrist.ConfigSelectedFeedbackSensor(FeedbackDevice::PulseWidthEncodedPosition, 0, NOTIMEOUT);	 
+		Wrist.SetSensorPhase(true);
+	    Wrist.ConfigNominalOutputForward(0.0f, TIMEOUT);
+		Wrist.ConfigNominalOutputReverse(0.0f, TIMEOUT);
+	    Wrist.ConfigPeakOutputForward(+12.0f, TIMEOUT);
+	 	Wrist.ConfigPeakOutputReverse(-12.0f, TIMEOUT);
+		Wrist.SelectProfileSlot(0, 0);
+		Wrist.Config_kP(0, PVALUE, TIMEOUT);
+		Wrist.Config_kI(0, IVALUE, TIMEOUT);
+		Wrist.Config_kD(0, DVALUE, TIMEOUT);
+		Wrist.SetNeutralMode(NeutralMode::Coast);
+		Wrist.Set(ControlMode::PercentOutput, 0.0);
+
+	//	Wrist.GetSensorCollection().SetPulseWidthPosition(RRSteer.GetSensorCollection().GetPulseWidthPosition()%4096 - frc::Preferences::GetDouble("RRZero",0), TIMEOUT);
+		  
+
+		 Intake.ConfigSelectedFeedbackSensor(FeedbackDevice::PulseWidthEncodedPosition, 0, NOTIMEOUT);
+         Intake.ConfigSelectedFeedbackSensor(FeedbackDevice::IntegratedSensor, 0, NOTIMEOUT);	
+		 Intake.SetSensorPhase(false);
+	     Intake.ConfigNominalOutputForward(0.0f, TIMEOUT);
+		 Intake.ConfigNominalOutputReverse(0.0f, TIMEOUT);
+	     Intake.ConfigPeakOutputForward(+12.0f, TIMEOUT);
+	 	 Intake.ConfigPeakOutputReverse(-12.0f, TIMEOUT);
+		 Intake.SelectProfileSlot(0, 0);
+		 Intake.Config_kP(0, 0.5, TIMEOUT);
+		 Intake.Config_kI(0, 0.0, TIMEOUT);
+		 Intake.Config_kD(0, 0.0, TIMEOUT);
+		 Intake.Set(ControlMode::PercentOutput, 0.0);
 
 		GyroSensor = new AHRS(frc::SPI::Port::kMXP);
 
