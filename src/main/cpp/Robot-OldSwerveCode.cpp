@@ -7,6 +7,7 @@
 
 #include <frc/Joystick.h>
 #include <frc/PS4Controller.h>
+#include <frc/XboxController.h>
 #include <frc/TimedRobot.h>
 #include <frc/DriverStation.h>
 #include <frc/Preferences.h>
@@ -15,7 +16,7 @@
 #include <frc/smartdashboard/SendableChooser.h>
 #include <frc/smartdashboard/SmartDashboard.h>
 #include "AHRS.h"
-#define PVALUE 2.00
+#define PVALUE 1.50
 #define IVALUE 0.000
 #define DVALUE 500000.00
 
@@ -171,6 +172,7 @@ int FirstPass=1,UseYTravel;
 //Realtime values of robot status
 int FieldCentric=0;   //1= feild centric driving
 float RobotAngle=0.0; //angle from Gyro
+float RobotPitch=0.0; //pitch from Gyro, used to balance robot
 int IntakeState=0;
 int UpdateCount=0;    //counter to slow screen update so it does not take too many CPU cycles
 
@@ -216,6 +218,7 @@ int StartingLocation=0;
 #define TOP_SCORE 4
 #define TRAVEL_POS 5
 int ArmPosition = ARM_DEFAULT;
+int ArmManual = 0;
 #define CONE 1
 #define CUBE 0
 int ObjectType = 0;
@@ -278,7 +281,20 @@ class Robot : public frc::TimedRobot {
 
 		UpdateDriverScreen();
 
-		JoystickControl(); //` add way to switch between
+		OperatorControl();
+		ArmControl();
+
+		if(arm_stick.GetRawButton(2)){ //outake
+			Intake.Set(ControlMode::PercentOutput, .5);
+		}
+		else if(arm_stick.GetTrigger()){//intake
+			Intake.Set(ControlMode::PercentOutput, -1.0);
+		}
+		else
+		{
+			Intake.Set(ControlMode::PercentOutput, -0.1);
+		}
+		
 
   }
 
@@ -293,7 +309,7 @@ class Robot : public frc::TimedRobot {
 
         UpdateDriverScreen();
 
-		
+		ArmManual = 1;
 
         if(rot_stick.GetTrigger()){ //Cal Swerve Zeros write
             frc::Preferences::SetDouble("FLZero",FLZero);
@@ -312,44 +328,41 @@ class Robot : public frc::TimedRobot {
         RLZero = RLSteer.GetSensorCollection().GetPulseWidthPosition();
         RRZero = RRSteer.GetSensorCollection().GetPulseWidthPosition();
 
-
+		ArmControl();
     }
 
-	void JoystickControl(){
-		//Intake.Set(ControlMode::PercentOutput, arm_stick.GetY());
-		if(arm_stick.GetRawButton(2)){ //outake
-			Intake.Set(ControlMode::PercentOutput, .5);
-		}
-		else if(arm_stick.GetTrigger()){//intake
-			Intake.Set(ControlMode::PercentOutput, -1.0);
-		}
-		else
-		{
-			Intake.Set(ControlMode::PercentOutput, 0);
-		}
-
-        Wrist.Set(ControlMode::PercentOutput, arm_stick.GetX());
-		Shoulder.Set(ControlMode::PercentOutput, -arm_stick.GetY());
-	}
-
-	void Ps4Control(){
+	void OperatorControl(){
 		//Button Mappings
 		
 		//Arm Positions
-		if(OpController.GetSquareButton()) ArmPosition = HP_PICKUP; 
-		if(OpController.GetRightX()) ArmPosition = FLOOR_PICKUP;
-		else if(OpController.GetCircleButton()) ArmPosition = MID_SCORE;
-		else if(OpController.GetTriangleButton()) ArmPosition = TOP_SCORE;
-		else if(OpController.GetR1Button()) ArmPosition = TRAVEL_POS;
+		if(OpController.GetXButton()) ArmPosition = HP_PICKUP; 
+		if(OpController.GetAButton()) ArmPosition = FLOOR_PICKUP;
+		else if(OpController.GetBButton()) ArmPosition = MID_SCORE;
+		else if(OpController.GetYButton()) ArmPosition = TOP_SCORE;
+		else if(OpController.GetRightBumper()) ArmPosition = TRAVEL_POS;
 		else ArmPosition = ARM_DEFAULT;
 
 		//cone cube
-		if(OpController.GetR2Button()) ObjectType = CUBE;
-		if(OpController.GetL2Button()) {
+		if(OpController.GetRightTriggerAxis()){
+			ObjectType = CUBE;
+			OpController.SetRumble(frc::GenericHID::RumbleType::kBothRumble,0.0);
+		}
+		else if(OpController.GetLeftStickButton()) {
 			ObjectType = CONE;
+			OpController.SetRumble(frc::GenericHID::RumbleType::kBothRumble,0.5);
 		}
 
+		//homing rouetine
+		if(OpController.GetBackButton()){
+			//hold to home wrist
+		}else if(OpController.GetStartButton()){
+			//hold to home arm
 
+		}
+
+		
+		// if(OpController.GetLeftBumper()) ArmManual = 1;
+		// else ArmManual = 0;
 
 	}
 
@@ -373,11 +386,13 @@ class Robot : public frc::TimedRobot {
             sprintf(str, "delta:%4.2f",delta);
 		    frc::SmartDashboard::PutString("DB/String 0", str);
  */  
-			sprintf(str, "Mod:%4.2f,%4.2f",ActDir[FR],TargetDir[FR]);
-		    frc::SmartDashboard::PutString("DB/String 3", str);
-			sprintf(str, "Tgt:%4.2f,%4.2f",TargetDir[RR],TargetDir[FL]);
-		    frc::SmartDashboard::PutString("DB/String 4", str);
-			sprintf(str, "gyro= %f",fmod(RobotAngle,360.0));
+			//sprintf(str, "Mod:%4.2f,%4.2f",ActDir[FR],TargetDir[FR]);
+		    sprintf(str,"Shld:%4.2f",Shoulder.GetSelectedSensorPosition());
+			frc::SmartDashboard::PutString("DB/String 3", str);
+			//sprintf(str, "Tgt:%4.2f,%4.2f",TargetDir[RR],TargetDir[FL]);
+		    sprintf(str,"Wrst:%4.2f",Wrist.GetSelectedSensorPosition());
+			frc::SmartDashboard::PutString("DB/String 4", str);
+			sprintf(str, "gyro= %f",Gyro);
 		    frc::SmartDashboard::PutString("DB/String 5", str);
 
 			//Temp display for encoder values
@@ -396,7 +411,6 @@ class Robot : public frc::TimedRobot {
 
 		}else UpdateCount--;
 	}
-
 
 
 	void UpdateScreenAuto(int Command, int AutoLine,double AutoX, double AutoY, double MaxPower, int Orientation){
@@ -448,11 +462,11 @@ class Robot : public frc::TimedRobot {
 			SWRVX=dir_stick.GetX();
 			if (fabs(SWRVX)<0.05) SWRVX=0.0;
 			SWRVZ=rot_stick.GetX();
-			if(dir_stick.GetTrigger()) FieldCentric=0;
+			if(rot_stick.GetTrigger()) FieldCentric=0;
 			else FieldCentric=1;	  
 		}
 		//Button 6 on left joystick resets the gyro to 0 degrees
-		if(rot_stick.GetRawButton(6))
+		if(dir_stick.GetRawButton(9))
 		{
 			ResetGyro();
 		}
@@ -530,10 +544,11 @@ class Robot : public frc::TimedRobot {
 			return(-speed);
     }	// End CVTSpeed
 
+	float Gyro;
 	//controlling the direction and speed of the swerve drives
     void SwerveDrive(void) {
     	int i;
-    	float Gyro,temp;
+    	float temp;
       
     	//Read encoder counts and then divide to get degrees of rotation
     	ActDir[FL]=fmod((FLSteer.GetSensorCollection().GetPulseWidthPosition()/11.38),360.0); //GetPulseWidthPosition()
@@ -550,9 +565,9 @@ class Robot : public frc::TimedRobot {
 				SWRVZ=0.0;
 			}else{
 				// if(rot_stick.GetRawButton(8)) { // button 8 for fast rotation
-				// 	SWRVZ=pow(2.5*SWRVZ,3);  // show off (or big, heavy frame)
+				/// 	SWRVZ=pow(2.5*SWRVZ,3);  // show off (or big, heavy frame)
 				// } else {
-				// 	SWRVZ=pow(1*SWRVZ,3); // small frame normal rotation
+				 	SWRVZ=pow(1*SWRVZ,3); // small frame normal rotation
 				// }
 
 			}
@@ -597,9 +612,8 @@ class Robot : public frc::TimedRobot {
     }	// End SwerveDrive
 
 	void ReadGyro(void) {
-		RobotAngle = GyroSensor->GetYaw();//-GyroOffset;
-        GyroSensor->ZeroYaw();
-        //RobotPitch = ahrs->GetPitch();
+		RobotAngle = -GyroSensor->GetYaw();//-GyroOffset;
+        RobotPitch = GyroSensor->GetPitch();
 	}	// End ReadyGyro
 	void ResetGyro(void) {
 		GyroSensor->ZeroYaw();
@@ -643,29 +657,21 @@ class Robot : public frc::TimedRobot {
 		return(result/772.5); //678.44);
 	}
 
+	const double ArmPoses[6][2] = {
+	//	Sholder Position	Wrist Position
+		{0,2}, //ARM_DEFAULT
+	};
+
 	void ArmControl(){
-		switch (ArmPosition)
-		{
-		case HP_PICKUP:
-			/* code */
-			break;
-		case FLOOR_PICKUP:
-
-			break;
-		case MID_SCORE:
-
-			break;
-		case TOP_SCORE:
-
-			break;
-		case TRAVEL_POS:
-
-			break;
-		case ARM_DEFAULT:
-		default:
-			
-			break;
+		ArmManual = 1; //`remove soon
+		if(ArmManual){
+			Wrist.Set(ControlMode::PercentOutput, arm_stick.GetX());
+			Shoulder.Set(ControlMode::PercentOutput, -arm_stick.GetY());
+		}else{
+			Shoulder.Set(ControlMode::Position,ArmPoses[ArmPosition][0]);
+			Wrist.Set(ControlMode::Position,ArmPoses[ArmPosition][1]);
 		}
+
 	}
 
   	//AUTONOMOUS DRIVING STATE MACHINE
@@ -815,7 +821,7 @@ class Robot : public frc::TimedRobot {
   frc::Joystick rot_stick{ROT};  //swerve rotation
   frc::Joystick arm_stick{ARM};  //arm functions
 
-  frc::PS4Controller OpController{OP_PS4};
+  frc::XboxController OpController{OP_PS4};
   
   TalonFX FLDrive = {FLD};
   TalonFX FRDrive = {FRD};
@@ -976,14 +982,16 @@ class Robot : public frc::TimedRobot {
 		Shoulder.ConfigNominalOutputReverse(0.0f, TIMEOUT);
 	    Shoulder.ConfigPeakOutputForward(+12.0f, TIMEOUT);
 	 	Shoulder.ConfigPeakOutputReverse(-12.0f, TIMEOUT);
+		// Shoulder.ConfigSupplyCurrentLimit(motorcontrol::SupplyCurrentLimitConfiguration{})
 		Shoulder.SelectProfileSlot(0, 0);
 		Shoulder.Config_kP(0, 0.5, TIMEOUT);
 		Shoulder.Config_kI(0, 0.0, TIMEOUT);
 		Shoulder.Config_kD(0, 0.0, TIMEOUT);
+		Shoulder.ConfigSupplyCurrentLimit(motorcontrol::SupplyCurrentLimitConfiguration{true,1,1,.1},TIMEOUT);
 		Shoulder.SetNeutralMode(NeutralMode::Brake);
 		Shoulder.Set(ControlMode::PercentOutput, 0.0);
 
-		Wrist.ConfigSelectedFeedbackSensor(FeedbackDevice::PulseWidthEncodedPosition, 0, NOTIMEOUT);	 
+		Wrist.ConfigSelectedFeedbackSensor(FeedbackDevice::QuadEncoder, 0, NOTIMEOUT);	 
 		Wrist.SetSensorPhase(true);
 	    Wrist.ConfigNominalOutputForward(0.0f, TIMEOUT);
 		Wrist.ConfigNominalOutputReverse(0.0f, TIMEOUT);
@@ -994,9 +1002,11 @@ class Robot : public frc::TimedRobot {
 		Wrist.Config_kI(0, IVALUE, TIMEOUT);
 		Wrist.Config_kD(0, DVALUE, TIMEOUT);
 		Wrist.SetNeutralMode(NeutralMode::Coast);
+		Wrist.ConfigPeakCurrentLimit(1,TIMEOUT);
 		Wrist.Set(ControlMode::PercentOutput, 0.0);
-
-	//	Wrist.GetSensorCollection().SetPulseWidthPosition(RRSteer.GetSensorCollection().GetPulseWidthPosition()%4096 - frc::Preferences::GetDouble("RRZero",0), TIMEOUT);
+		Wrist.ConfigPeakCurrentLimit(3,TIMEOUT);
+		Wrist.SetSelectedSensorPosition(fmod(Wrist.GetSelectedSensorPosition(),2048));
+	    
 		  
 
 		 Intake.ConfigSelectedFeedbackSensor(FeedbackDevice::PulseWidthEncodedPosition, 0, NOTIMEOUT);
