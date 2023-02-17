@@ -23,8 +23,8 @@
 #define START 10
 #define STOP  11
 #define MOVE  12
-#define SWITCH 14
-#define ADJUST 13
+#define ARM_AUTO 13
+#define BALANCE 14
 
 #define NUMAUTOLINES 30
 int (*AutoArray)[8];
@@ -32,101 +32,49 @@ int (*AutoArray)[8];
 #define IDXX 7 /* x offset from 0,0 for index wheel FL=7, FR=17, RL=7, RR=17 */
 #define IDXY -17 /*y offset from 0,0 for index wheel FL=-7, FR=-7, RL=-17, RR=-17 */ 
 
+//Flag so we don't reinit Gyros etc when switching from Auto to Telop
+int RobotInitialized=0;
+int AutoArraySet=0;
+int StartingLocation=0;
+//Arm Positions
+#define ARM_DEFAULT 0
+#define HP_PICKUP 1
+#define FLOOR_PICKUP 2
+#define MID_SCORE 3 
+#define TOP_SCORE 4
+#define TRAVEL_POS 5
+int ArmPosition = ARM_DEFAULT;
+int ArmManual = 0;
+#define CONE 1
+#define CUBE 0
+int ObjectType = 0;
+
+#define INTAKE_IDLE 0
+#define INTAKE_EJECT 1
+#define INTAKE_HOLD 2
 
 // autonomous barrel race  RED 1
 #define BRPW 70
-int BR_AutoArray[NUMAUTOLINES][8]={
+int BALACE_AutoArray[NUMAUTOLINES][8]={
 	        //CMD,   Acc mSec,Dec Inches, MaxPwr,TargetX, TargetY, Orientation Deg,IntakeState
 			{START,      0,         0,      0,      0,       0,        0,            0}, //Start at midfield location
-			{MOVE,    750,         5,   BRPW,     -10,      50,        0,            0},	//up to speed
-			{MOVE,       5,         5,   BRPW,     5,     101,        0,            0},	//cone 1
-			{MOVE,       5,         5,   BRPW,     30,     121,        0,            0},	//
-			{MOVE,       5,         5,   BRPW,     30,      75,        0,            0},	//
-			{MOVE,       5,         5,   BRPW,     5,      75,        0,            0},	//
-			{MOVE,       5,         5,   BRPW,     -15,     185,        0,            0},	//cone 2
-			{MOVE,       5,         5,   BRPW,      -45,     185,        0,            0}, 	//
-			{MOVE,       5,         5,   BRPW,      -45,     130,        0,            0}, 	//
-			{MOVE,       5,         5,   BRPW,     40,     196,        0,            0}, 	//cone 3
-		    {MOVE,       5,         5,   BRPW,     40,     240,        0,            0},	//
-		    {MOVE,       5,         5,   BRPW,     -5,     240,        0,            0},
-			{MOVE,       5,         5,    100,     -25,     120,        0,            0},	//
-			{MOVE,       5,        60,    100,     0,       0,        0,            0},	//return to base
-			{MOVE,       5,        60,     30,     0,      20,        0,            0},	//descelerate
+			{ARM_AUTO,   1000,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_HOLD},
+			{ARM_AUTO,   1000,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_EJECT},
+			{ARM_AUTO,   0,			0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_IDLE},
+			{BALANCE,	 0,			0,		0,		0,		 0,		   0,  INTAKE_IDLE},
 			{STOP,       0,         0,      0,      0,       0,        0,            0},	//STOP
 };
 
-// slalom  RED 2
-#define SLPW 65
-int	SL_AutoArray[NUMAUTOLINES][8]={
+int BALACE_AutoArray[NUMAUTOLINES][8]={
 	        //CMD,   Acc mSec,Dec Inches, MaxPwr,TargetX, TargetY, Orientation Deg,IntakeState
-			{START,      0,         0,      0,     160,      40,        0,            0},	//Start at right location
-			{MOVE,    500,         5,   SLPW,     110,     90,        0,            0},	//
-			{MOVE,       5,         5,   100,     90,     260,        0,            0},	//pass 1
-			{MOVE,     5,         5,     65,     125,     285,        0,            0},	//500
-			{MOVE,		 5,			5,	   65,	   105,		320,		0,			  0},	//pass 3
-			{MOVE,       5,         5,     65,      75,     290,        0,            0},	//
-			{MOVE,       5,         5,     65,     120,     250,        0,            0},	//pass 4
-			{MOVE,       5,         5,   100,     120,      80,        0,            0},	//
-			{MOVE,       5,         5,     65,      95,      30,        0,            0},	//pass 5
-			{STOP,       0,         0,      0,       0,       0,        0,            0},	//STOP
+			{START,      0,         0,      0,      0,       0,        0,            0}, //Start at midfield location
+			{ARM_AUTO,   1000,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_HOLD},
+			{ARM_AUTO,   1000,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_EJECT},
+			{ARM_AUTO,   0,			0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_IDLE},
+			{MOVE,	 	 0,			0,		0,		224,		 0,		   0,  INTAKE_IDLE},
+			{STOP,       0,         0,      0,      0,       0,        0,            0},	//STOP
 };
 
-// Bounce Path   RED 3 line up to right of zone with left front corner at middle
-#define BNPW 75
-int	BN_AutoArray[NUMAUTOLINES][8]={
-	        //CMD,   Acc mSec,Dec Inches, MaxPwr,TargetX, TargetY, Orientation Deg,IntakeState
-			{START,      0,         0,      0,    IDXX,   IDXY,        0,            0},	//Start at midfield location
-			{MOVE,    500,         5,   BNPW,     -23,     22,        0,            0},	//
-			{MOVE,       5,        10,     50,     -50,     25,        0,            0},	//pin 1
-			{ADJUST,     0,         0,      0,     -10,      0,        0,            0},	//spin 10"@45 15"@50
-			{MOVE,    500,         5,   BNPW,      15,     70,        0,            0},	//
-			{MOVE,       5,         5,   BNPW,      40,     94,        0,            0},	//turn 1
-			{MOVE,       5,         5,   BNPW,      35,    100,        0,            0},	//
-			{MOVE,       5,         5,  55,     -20,    130,        0,            0},	//
-			{MOVE,       5,         5,   40,     -50,    125,        0,            0},	//
-			{ADJUST,     0,         0,      0,     0,      0,        0,            0},	//spin 10"@45 15"@50
-			{MOVE,    500,        5,   BNPW,      20,    120,        0,            0},	//pin 2
-			{MOVE,       5,         5,   BNPW,      35,    195,        0,            0},	//
-			{MOVE,       5,        5,   BNPW,     -30,    200,        0,            0},	//pin 3
-		    {MOVE,       5,        5,   40,     -60,    200,        0,            0},	//pin 3
-			//{ADJUST,     0,         0,      0,     -10,      0,        0,            0},	//spin 10"@45 15"@50
-			{MOVE,    500,         5,   BNPW,     -20,    190,        0,            0},	//
-			{MOVE,       5,         5,   BNPW,     -20,    220,        0,            0},	//finish
-			{STOP,       0,         0,      0,       0,      0,        0,            0},	//STOP
-};
-
-// Galactic Search Path(s)   BLUE 1
-#define GSPW 45
-int	GS_AutoArray_Initial[NUMAUTOLINES][8]={
-	        //CMD,   Acc mSec,Dec Inches, MaxPwr,TargetX, TargetY, Orientation Deg,IntakeState
-			{START,      0,         0,      0,    20,      10,        0,            -1},	//Start at midfield location
-			{MOVE,    1500,         5,   GSPW,     20,     40,        45,            -1},	//
-			{MOVE,       5,         5,   GSPW,     30,     80,        85,           1},	//
-			{SWITCH,     6,         0,      0,     0,      0,        0,            0},	//Detect path A or B and switch AutoArray
-			//-----------------------------Ball 1 Red B--------------------------
-			{MOVE,    5,         5,   GSPW,     100,     140,        45,            1},
-			{MOVE,    5,         5,   GSPW,     35,     220,        -45,            1}, 
-			{MOVE,    5,         5,   GSPW,     40,     295,        -90,            1},
-			{MOVE,    5,         5,   GSPW,     50,     285,        -90,            0}, 
-			{STOP,       0,         0,      0,       0,      0,        0,            0}, //STOP
-			//----------------------------Ball 1 Red A--------------------------
-			{MOVE,    5,         5,   GSPW,     70,     75,        90,            1}, 
-			{SWITCH,     6,         0,      0,     0,      0,        0,            0},
-			{MOVE,    500,         5,   GSPW,     125,    175,        45,            1},
-			{MOVE,    500,         5,   GSPW,     20,     160,       -30,            1}, 
-			{MOVE,    5,         5,   GSPW,     30,     250,        -45,            1},
-			{MOVE,    5,         5,   GSPW,     50,     330,        -90,            0}, 
-			{STOP,       0,         0,      0,       0,      0,        0,            0},	//STOP
-			//--------------------------Blue A + B------------------------------
-			{MOVE,    1500,         5,   GSPW,     130,     130,        0,            1},
-			{MOVE,    1500,         5,   GSPW,     138,     165,        -30,            1},
-			{MOVE,    1500,         5,   GSPW,     110,     175,        -90,            1},
-			{MOVE,    5,         5,   GSPW,     49,     170,        -30,            1},
-			{MOVE,    5,         5,   GSPW,     45,     225,        0,            1},
-			{MOVE,    5,         5,   GSPW,     94,     300,        45,            1},
-			{MOVE,    5,         5,   GSPW,     125,     345,        90,            1},
-			{STOP,       0,         0,      0,       0,      0,        0,            0},
-};
 //Motor controller defines
 #define TIMEOUT 10
 #define NOTIMEOUT 0
@@ -198,30 +146,6 @@ float delta =0.0;                         //local variable for determining best 
 	double AutoDriveX, AutoDriveY, AutoDriveZ;
 
 
-//Flag so we don't reinit Gyros etc when switching from Auto to Telop
-int RobotInitialized=0;
-int AutoArraySet=0;
-int StartingLocation=0;
-#define RED1  (frc::DriverStation::kRed*10+1)
-#define RED2  (frc::DriverStation::kRed*10+2)
-#define RED3  (frc::DriverStation::kRed*10+3)
-#define BLUE1 (frc::DriverStation::kBlue*10+1)
-#define BLUE2 (frc::DriverStation::kBlue*10+2)
-#define BLUE3 (frc::DriverStation::kBlue*10+3)
-#define UNKNOWN 0
-
-//Arm Positions
-#define ARM_DEFAULT 0
-#define HP_PICKUP 1
-#define FLOOR_PICKUP 2
-#define MID_SCORE 3 
-#define TOP_SCORE 4
-#define TRAVEL_POS 5
-int ArmPosition = ARM_DEFAULT;
-int ArmManual = 0;
-#define CONE 1
-#define CUBE 0
-int ObjectType = 0;
 
 class Robot : public frc::TimedRobot {
   public:
@@ -236,20 +160,13 @@ class Robot : public frc::TimedRobot {
 			for(i=0;i<4;i++){
 				OldPosition[i]=GetLocation(i);
 			}
-			StartingLocation = RED1;//`frc::DriverStation::GetInstance().GetAlliance()*10 + frc::DriverStation::GetInstance().GetLocation();
+			StartingLocation = 0;//`frc::DriverStation::GetInstance().GetAlliance()*10 + frc::DriverStation::GetInstance().GetLocation();
 			switch (StartingLocation){ 
-				case RED1:
-					AutoArray=BR_AutoArray;			//Red 1 = Barrel Race game
+				case 0:
+					AutoArray=BALACE_AutoArray;			//Red 1 = Barrel Race game
 					break;
-				case RED2:
-					AutoArray=SL_AutoArray;			//Red 2 = Slalom game
-					break;
-				case RED3:
-					AutoArray=BN_AutoArray;			//Red 3 = Bounce game
-					break;
-				case BLUE1:
 				default:
-					AutoArray=GS_AutoArray_Initial;	//Blue 1 = Galactic Search game--need logic to determine path A or B
+					AutoArray=BALACE_AutoArray;	//Blue 1 = Galactic Search game--need logic to determine path A or B
 					break;
 			}
 	   }
@@ -282,18 +199,12 @@ class Robot : public frc::TimedRobot {
 		UpdateDriverScreen();
 
 		OperatorControl();
-		ArmControl();
+		// ArmControl();
 
-		if(arm_stick.GetRawButton(2)){ //outake
-			Intake.Set(ControlMode::PercentOutput, .5);
-		}
-		else if(arm_stick.GetTrigger()){//intake
-			Intake.Set(ControlMode::PercentOutput, -1.0);
-		}
-		else
-		{
-			Intake.Set(ControlMode::PercentOutput, -0.1);
-		}
+		RunShoulder();
+		RunWrist();
+		RunIntake();
+
 		
 
   }
@@ -328,26 +239,55 @@ class Robot : public frc::TimedRobot {
         RLZero = RLSteer.GetSensorCollection().GetPulseWidthPosition();
         RRZero = RRSteer.GetSensorCollection().GetPulseWidthPosition();
 
-		ArmControl();
+		Wrist.Set(ControlMode::PercentOutput, OpController.GetLeftY()*0.5);
+		Shoulder.Set(ControlMode::PercentOutput, -OpController.GetRightY()*0.5);
     }
 
+	#define SHOULDER_POSE 0
+	#define WRIST_POSE 1
+	const double ArmPoses[6][2] = {
+	//	Sholder Position	Wrist Position
+		{0,2}, //ARM_DEFAULT
+	};
+
+	#define MAX_SHOULDER 500000
+	#define MIN_SHOULDER 0
+	#define MAX_WRIST 3000
+	#define MIN_WRIST 0
+
+	int ShoulderTarget = 0;
+	int WristTarget =0;
 	void OperatorControl(){
 		//Button Mappings
 		
 		//Arm Positions
-		if(OpController.GetXButton()) ArmPosition = HP_PICKUP; 
-		if(OpController.GetAButton()) ArmPosition = FLOOR_PICKUP;
-		else if(OpController.GetBButton()) ArmPosition = MID_SCORE;
-		else if(OpController.GetYButton()) ArmPosition = TOP_SCORE;
-		else if(OpController.GetRightBumper()) ArmPosition = TRAVEL_POS;
-		else ArmPosition = ARM_DEFAULT;
+		if(OpController.GetXButton()) {
+			ShoulderTarget = ArmPoses[HP_PICKUP][SHOULDER_POSE];
+			WristTarget = ArmPoses[HP_PICKUP][WRIST_POSE];
+		} 
+		if(OpController.GetAButton()){
+			ShoulderTarget = ArmPoses[FLOOR_PICKUP][SHOULDER_POSE];
+			WristTarget = ArmPoses[FLOOR_PICKUP][WRIST_POSE];
+		}
+		else if(OpController.GetBButton()){
+			ShoulderTarget = ArmPoses[MID_SCORE][SHOULDER_POSE];
+			WristTarget = ArmPoses[MID_SCORE][WRIST_POSE];
+		}
+		else if(OpController.GetYButton()){
+			ShoulderTarget = ArmPoses[TOP_SCORE][SHOULDER_POSE];
+			WristTarget = ArmPoses[TOP_SCORE][WRIST_POSE];
+		}
+		else if(OpController.GetRightBumper()){
+			ShoulderTarget = ArmPoses[TRAVEL_POS][SHOULDER_POSE];
+			WristTarget = ArmPoses[TRAVEL_POS][WRIST_POSE];
+		}
 
 		//cone cube
-		if(OpController.GetRightTriggerAxis()){
+		if(OpController.GetPOV()==90){
 			ObjectType = CUBE;
 			OpController.SetRumble(frc::GenericHID::RumbleType::kBothRumble,0.0);
 		}
-		else if(OpController.GetLeftStickButton()) {
+		else if(OpController.GetPOV()==270) {
 			ObjectType = CONE;
 			OpController.SetRumble(frc::GenericHID::RumbleType::kBothRumble,0.5);
 		}
@@ -355,15 +295,70 @@ class Robot : public frc::TimedRobot {
 		//homing rouetine
 		if(OpController.GetBackButton()){
 			//hold to home wrist
+			Wrist.GetSensorCollection().SetQuadraturePosition(0,TIMEOUT);
 		}else if(OpController.GetStartButton()){
-			//hold to home arm
-
+			//hold to home Shoulder
+			Shoulder.GetSensorCollection().SetIntegratedSensorPosition(0);
 		}
 
+		//Manual Mode
+		double StickL = OpController.GetLeftY();
+		double StickR = -OpController.GetRightY(); 
+		if(fabs(StickL)>0.15){
+			WristTarget += StickL*5;
+		}
+		if(fabs(StickR)>0.15){
+			if(fabs(Shoulder.GetSensorCollection().GetIntegratedSensorPosition()-ShoulderTarget)<2000){
+				ShoulderTarget += StickR*1000;
+			}
+		}	
 		
-		// if(OpController.GetLeftBumper()) ArmManual = 1;
-		// else ArmManual = 0;
 
+	}
+
+	void RunWrist(){
+		//Wrist limits
+		if(WristTarget>MAX_WRIST){
+			WristTarget=MAX_WRIST;
+		}
+		if(WristTarget<MIN_WRIST){
+			WristTarget=MIN_WRIST;
+		}
+		if(Shoulder.GetSensorCollection().GetIntegratedSensorPosition()>10000 && Shoulder.GetSensorCollection().GetIntegratedSensorPosition() < 20000){
+			WristTarget = ArmPoses[TRAVEL_POS][WRIST_POSE];
+		}
+
+		// Wrist.Set(ControlMode::Position,WristTarget);
+	}
+
+	void RunShoulder(){
+		//Shoulder Limits
+		if(ShoulderTarget>MAX_SHOULDER){
+			ShoulderTarget=MAX_SHOULDER;
+		}
+		if(ShoulderTarget<MIN_SHOULDER){
+			ShoulderTarget=MIN_SHOULDER;
+		}
+		
+		Shoulder.Set(ControlMode::MotionMagic,ShoulderTarget);
+	}
+
+	int InLast = 0;
+	void RunIntake(){
+		if(OpController.GetLeftTriggerAxis()>0){ //outake
+			Intake.Set(ControlMode::PercentOutput, -1.0);
+			InLast=1;
+		}
+		else if(OpController.GetLeftBumper()){//intake
+			Intake.Set(ControlMode::PercentOutput, .5);
+			InLast=0;
+		}
+		else
+		{
+			if(InLast==1) Intake.Set(ControlMode::PercentOutput, -0.2);
+			else Intake.Set(ControlMode::PercentOutput,0);
+			
+		}
 	}
 
 	void UpdateDriverScreen(){
@@ -376,38 +371,27 @@ class Robot : public frc::TimedRobot {
 			sprintf(str, "Rot:%f %f",FLSTEER,rot_stick.GetX());
 		    frc::SmartDashboard::PutString("DB/String 0", str);
 */
-			sprintf(str, "FR:%d %d",FRSteer.GetSensorCollection().GetPulseWidthPosition(),FRSteer.GetSensorCollection().GetAnalogInRaw());
-		    frc::SmartDashboard::PutString("DB/String 0", str);
-			sprintf(str, "xFL%d,FR%d,RL%d,RR%d",(int)RobotX[FL],(int)RobotX[FR],(int)RobotX[RL],(int)RobotX[RR]);
+			//sprintf(str, "FR:%d %d",FRSteer.GetSensorCollection().GetPulseWidthPosition(),FRSteer.GetSensorCollection().GetAnalogInRaw());
+		    //frc::SmartDashboard::PutString("DB/String 0", str);
+			//sprintf(str, "xFL%d,FR%d,RL%d,RR%d",(int)RobotX[FL],(int)RobotX[FR],(int)RobotX[RL],(int)RobotX[RR]);
+			//frc::SmartDashboard::PutString("DB/String 1", str);
+			sprintf(str, "tFL%d,FR%d,RL%d,RR%d",(int)TargetDir[FL],(int)TargetDir[FR],(int)TargetDir[RL],(int)TargetDir[RR]);
+			frc::SmartDashboard::PutString("DB/String 0", str);
+			sprintf(str, "aFL%d,FR%d,RL%d,RR%d",(int)ActDir[FL],(int)ActDir[FR],(int)ActDir[RL],(int)ActDir[RR]);
 			frc::SmartDashboard::PutString("DB/String 1", str);
-			sprintf(str, "yFL%d,FR%d,RL%d,RR%d",(int)TargetDir[FL],(int)TargetDir[FR],(int)TargetDir[RL],(int)TargetDir[RR]);
-			frc::SmartDashboard::PutString("DB/String 2", str);
  /*
             sprintf(str, "delta:%4.2f",delta);
 		    frc::SmartDashboard::PutString("DB/String 0", str);
  */  
 			//sprintf(str, "Mod:%4.2f,%4.2f",ActDir[FR],TargetDir[FR]);
-		    sprintf(str,"Shld:%4.2f",Shoulder.GetSelectedSensorPosition());
-			frc::SmartDashboard::PutString("DB/String 3", str);
+		    sprintf(str,"Shld a%6.0f,t%d",Shoulder.GetSensorCollection().GetIntegratedSensorPosition(),ShoulderTarget);
+			frc::SmartDashboard::PutString("DB/String 2", str);
 			//sprintf(str, "Tgt:%4.2f,%4.2f",TargetDir[RR],TargetDir[FL]);
-		    sprintf(str,"Wrst:%4.2f",Wrist.GetSelectedSensorPosition());
-			frc::SmartDashboard::PutString("DB/String 4", str);
+		    sprintf(str,"Wrst a%d,t%d",Wrist.GetSensorCollection().GetQuadraturePosition(),WristTarget);
+			frc::SmartDashboard::PutString("DB/String 3", str);
 			sprintf(str, "gyro= %f",Gyro);
-		    frc::SmartDashboard::PutString("DB/String 5", str);
+		    frc::SmartDashboard::PutString("DB/String 4", str);
 
-			//Temp display for encoder values
-			sprintf(str, "FL%4.2f,RL%4.2f", fmod(ActDir[FL],360.0), fmod(ActDir[RL],360.0));
-		    frc::SmartDashboard::PutString("DB/String 6", str);
-			sprintf(str, "FR%4.2f,RR%4.2f", fmod(ActDir[FR],360.0), fmod(ActDir[RR],360.0));
-		    frc::SmartDashboard::PutString("DB/String 7", str);
-				//sprintf(str, "TMR: %f",TeleTime.Get());
-				//frc::SmartDashboard::PutString("DB/String 8", str);
-				//sprintf(str, "INTAKE: %.2f", arm_stick.GetY());
-				sprintf(str,"SWRVZ%4.2f",SWRVZ);
-				frc::SmartDashboard::PutString("DB/String 8", str);
-
-
-			//Temp End	
 
 		}else UpdateCount--;
 	}
@@ -657,22 +641,9 @@ class Robot : public frc::TimedRobot {
 		return(result/772.5); //678.44);
 	}
 
-	const double ArmPoses[6][2] = {
-	//	Sholder Position	Wrist Position
-		{0,2}, //ARM_DEFAULT
-	};
 
-	void ArmControl(){
-		ArmManual = 1; //`remove soon
-		if(ArmManual){
-			Wrist.Set(ControlMode::PercentOutput, arm_stick.GetX());
-			Shoulder.Set(ControlMode::PercentOutput, -arm_stick.GetY());
-		}else{
-			Shoulder.Set(ControlMode::Position,ArmPoses[ArmPosition][0]);
-			Wrist.Set(ControlMode::Position,ArmPoses[ArmPosition][1]);
-		}
 
-	}
+
 
   	//AUTONOMOUS DRIVING STATE MACHINE
     void AutoStateMachine(void){
@@ -772,31 +743,12 @@ class Robot : public frc::TimedRobot {
 						   FirstPass=1;
 						}
 						break;
-		    case ADJUST: 
+		    case BALANCE: 
 			            RobotX[IDX]+=(double)AutoX;
 						RobotY[IDX]+=(double)AutoY;
 						AutoLine++;
 						FirstPass=1;
  		            break;
-			case SWITCH:
-                        if(FirstPass){
-							SwitchTimer.Start();
-							SwitchTimer.Reset();
-							FirstPass=0;
-						}
-						AutoDriveX=0.0;
-						AutoDriveY=0.0;
-						AutoDriveZ=0.0;
-						if(SwitchTimer.Get()>0.25_s){//`||BallSensor.Get()){
-
-							//`if(!BallSensor.Get()) {
-							//	AutoLine+=AccSec;
-							//} else {
-							//	AutoLine++;
-							//}
-						   FirstPass=1;
-						}
-					break;
 			default:
 			case STOP:
 						AutoDriveX=0.0;
@@ -984,15 +936,26 @@ class Robot : public frc::TimedRobot {
 	 	Shoulder.ConfigPeakOutputReverse(-12.0f, TIMEOUT);
 		// Shoulder.ConfigSupplyCurrentLimit(motorcontrol::SupplyCurrentLimitConfiguration{})
 		Shoulder.SelectProfileSlot(0, 0);
-		Shoulder.Config_kP(0, 0.5, TIMEOUT);
+		Shoulder.Config_kP(0, 0.1, TIMEOUT);
 		Shoulder.Config_kI(0, 0.0, TIMEOUT);
 		Shoulder.Config_kD(0, 0.0, TIMEOUT);
-		Shoulder.ConfigSupplyCurrentLimit(motorcontrol::SupplyCurrentLimitConfiguration{true,1,1,.1},TIMEOUT);
+		Shoulder.Config_kF(0, 0.3,TIMEOUT);
+		Shoulder.ConfigSupplyCurrentLimit(motorcontrol::SupplyCurrentLimitConfiguration{true,2,2,.1},TIMEOUT);
 		Shoulder.SetNeutralMode(NeutralMode::Brake);
 		Shoulder.Set(ControlMode::PercentOutput, 0.0);
+		Shoulder.ConfigClosedloopRamp(0.5,TIMEOUT);
+
+		/* Set relevant frame periods to be at least as fast as periodic rate */
+		Shoulder.SetStatusFramePeriod(StatusFrameEnhanced::Status_13_Base_PIDF0, 10, TIMEOUT);
+		Shoulder.SetStatusFramePeriod(StatusFrameEnhanced::Status_10_MotionMagic, 10, TIMEOUT);
+
+		/* Set acceleration and vcruise velocity - see documentation */
+		Shoulder.ConfigMotionCruiseVelocity(10000, TIMEOUT);
+		Shoulder.ConfigMotionAcceleration(10000, TIMEOUT);
+		Shoulder.ConfigMotionSCurveStrength(4,TIMEOUT);
 
 		Wrist.ConfigSelectedFeedbackSensor(FeedbackDevice::QuadEncoder, 0, NOTIMEOUT);	 
-		Wrist.SetSensorPhase(true);
+		Wrist.SetSensorPhase(false);
 	    Wrist.ConfigNominalOutputForward(0.0f, TIMEOUT);
 		Wrist.ConfigNominalOutputReverse(0.0f, TIMEOUT);
 	    Wrist.ConfigPeakOutputForward(+12.0f, TIMEOUT);
@@ -1004,8 +967,9 @@ class Robot : public frc::TimedRobot {
 		Wrist.SetNeutralMode(NeutralMode::Coast);
 		Wrist.ConfigPeakCurrentLimit(1,TIMEOUT);
 		Wrist.Set(ControlMode::PercentOutput, 0.0);
-		Wrist.ConfigPeakCurrentLimit(3,TIMEOUT);
-		Wrist.SetSelectedSensorPosition(fmod(Wrist.GetSelectedSensorPosition(),2048));
+		Wrist.ConfigPeakCurrentLimit(.25,TIMEOUT);
+		// Wrist.SetSelectedSensorPosition(fmod(Wrist.GetSelectedSensorPosition(),2048));
+		Wrist.GetSensorCollection().SetQuadraturePosition(0,TIMEOUT);
 	    
 		  
 
