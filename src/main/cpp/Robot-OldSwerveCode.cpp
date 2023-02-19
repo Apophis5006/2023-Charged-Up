@@ -42,16 +42,17 @@ int StartingLocation=0;
 #define FLOOR_PICKUP 2
 #define MID_SCORE 3 
 #define TOP_SCORE 4
-#define TRAVEL_POS 5
+#define TRAVEL_POS 0
 int ArmPosition = ARM_DEFAULT;
 int ArmManual = 0;
-#define CONE 1
-#define CUBE 0
-int ObjectType = 0;
+#define CONE 0
+#define CUBE 2
+int ObjectType = CONE;
 
 #define INTAKE_IDLE 0
 #define INTAKE_EJECT 1
 #define INTAKE_HOLD 2
+int AutoIntake = INTAKE_IDLE;
 
 // autonomous barrel race  RED 1
 #define BRPW 70
@@ -61,17 +62,28 @@ int BALACE_AutoArray[NUMAUTOLINES][8]={
 			{ARM_AUTO,   1000,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_HOLD},
 			{ARM_AUTO,   1000,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_EJECT},
 			{ARM_AUTO,   0,			0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_IDLE},
-			{BALANCE,	 0,			0,		0,		0,		 0,		   0,  INTAKE_IDLE},
+			{MOVE,	 	 250,		5,		30,		10,		 5,		   0,  INTAKE_IDLE},
+			{BALANCE,	 50,		5,		20,		20,		 0,		   0,  INTAKE_IDLE},
 			{STOP,       0,         0,      0,      0,       0,        0,            0},	//STOP
 };
 
-int BALACE_AutoArray[NUMAUTOLINES][8]={
+int LEAVE_ZONE_AutoArray[NUMAUTOLINES][8]={
 	        //CMD,   Acc mSec,Dec Inches, MaxPwr,TargetX, TargetY, Orientation Deg,IntakeState
 			{START,      0,         0,      0,      0,       0,        0,            0}, //Start at midfield location
-			{ARM_AUTO,   1000,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_HOLD},
-			{ARM_AUTO,   1000,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_EJECT},
-			{ARM_AUTO,   0,			0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_IDLE},
-			{MOVE,	 	 0,			0,		0,		224,		 0,		   0,  INTAKE_IDLE},
+			{ARM_AUTO,   2000,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_HOLD},
+			{ARM_AUTO,   1500,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_EJECT},
+			{ARM_AUTO,   500,			0,		0,TRAVEL_POS, CUBE,		   0,  INTAKE_IDLE},
+			{MOVE,	 	 250,		5,		30,		0,		 -10,		   0,  INTAKE_IDLE},
+			{STOP,       0,         0,      0,      0,       0,        0,            0},	//STOP
+};
+
+int MOVE_TEST_AutoArray[NUMAUTOLINES][8]={
+	        //CMD,   Acc mSec,Dec Inches, MaxPwr,TargetX, TargetY, Orientation Deg,IntakeState
+			{START,      0,         0,      0,      0,       0,        0,            0}, //Start at midfield location
+			{MOVE,	 	 500,		5,		20,		0,	 30,		   0,  INTAKE_IDLE},
+		   {BALANCE, 	 50,		5,	    10,		0,	 50,		   0,  INTAKE_IDLE},
+			// {MOVE,	 	 250,		5,		30,		0,		 100,		   0,  INTAKE_IDLE},
+			// {MOVE,	 	 250,		5,		30,		0,		 0,		   0,  INTAKE_IDLE},
 			{STOP,       0,         0,      0,      0,       0,        0,            0},	//STOP
 };
 
@@ -98,9 +110,9 @@ int BALACE_AutoArray[NUMAUTOLINES][8]={
 #define RLD 12
 #define RRD 15
 
-#define WRIST 9
+#define WRIST 8
 #define SHOULDER 1
-#define INTAKE 8
+#define INTAKE 9
 
 
 //For swerve code, define motor data locations in the arrays
@@ -109,7 +121,7 @@ int BALACE_AutoArray[NUMAUTOLINES][8]={
 #define FL 2
 #define RL 3
 #define ALL -1 /* all drive channels */
-#define IDX  3 /* use Rear Left Wheel as index */
+#define IDX  2 /* use FL Left Wheel as index */
 #define PI 3.141592654
 #define SW_L 21.75   //Distance between wheels from front to back
 #define SW_W 21.75   //Distance between wheels from side to side
@@ -123,6 +135,7 @@ float RobotAngle=0.0; //angle from Gyro
 float RobotPitch=0.0; //pitch from Gyro, used to balance robot
 int IntakeState=0;
 int UpdateCount=0;    //counter to slow screen update so it does not take too many CPU cycles
+int SelectedPosition = -1;
 
 
 //Swerve Control variables  RR, FR, FL, RL
@@ -153,6 +166,7 @@ class Robot : public frc::TimedRobot {
 	    int i;
 	    if(RobotInitialized==0) { //Initialize once only
 		    RobotInit();
+			
 	    }
 	    if(AutoArraySet==0) { //First time through
             AutoArraySet=1;
@@ -160,18 +174,26 @@ class Robot : public frc::TimedRobot {
 			for(i=0;i<4;i++){
 				OldPosition[i]=GetLocation(i);
 			}
-			StartingLocation = 0;//`frc::DriverStation::GetInstance().GetAlliance()*10 + frc::DriverStation::GetInstance().GetLocation();
+			StartingLocation = 0;
 			switch (StartingLocation){ 
 				case 0:
-					AutoArray=BALACE_AutoArray;			//Red 1 = Barrel Race game
+					AutoArray=MOVE_TEST_AutoArray;
+					// AutoArray=LEAVE_ZONE_AutoArray;		
 					break;
 				default:
-					AutoArray=BALACE_AutoArray;	//Blue 1 = Galactic Search game--need logic to determine path A or B
+					AutoArray=MOVE_TEST_AutoArray;
+					// AutoArray=LEAVE_ZONE_AutoArray;
 					break;
 			}
 	   }
 	   AutoTime.Start();
 	
+		RunShoulder();
+		RunWrist();
+		RunIntake();
+
+		// UpdateDriverScreen();
+        
 		ReadGyro();              //get the angle of the robot in to variable "RobotAngle"
 		TrackRobot();			//Track the Robot's FL wheel X,Y position around the field
 		AutoStateMachine();      //Get updated directional commands from autopilot
@@ -180,7 +202,6 @@ class Robot : public frc::TimedRobot {
 			SwerveDrive();           //Update the speed and direction of the swerve drive motors
 		}
 
-		UpdateDriverScreen();
   }
     void TeleopPeriodic() override {
 	  int i;
@@ -198,8 +219,12 @@ class Robot : public frc::TimedRobot {
 
 		UpdateDriverScreen();
 
+		// UpdateScreenAuto(0,0,0,0,0,0);
+
+		TrackRobot();
+
 		OperatorControl();
-		// ArmControl();
+
 
 		RunShoulder();
 		RunWrist();
@@ -239,59 +264,68 @@ class Robot : public frc::TimedRobot {
         RLZero = RLSteer.GetSensorCollection().GetPulseWidthPosition();
         RRZero = RRSteer.GetSensorCollection().GetPulseWidthPosition();
 
+		WristTarget=0;
+		ShoulderTarget=0;
+
+		//homing rouetine
+		if(OpController.GetBackButton()){
+			//hold to home wrist
+			Wrist.GetSensorCollection().SetQuadraturePosition(0,TIMEOUT);
+		}else if(OpController.GetStartButton()){
+			//hold to home Shoulder
+			Shoulder.GetSensorCollection().SetIntegratedSensorPosition(0);
+		}
+
 		Wrist.Set(ControlMode::PercentOutput, OpController.GetLeftY()*0.5);
 		Shoulder.Set(ControlMode::PercentOutput, -OpController.GetRightY()*0.5);
     }
 
 	#define SHOULDER_POSE 0
 	#define WRIST_POSE 1
-	const double ArmPoses[6][2] = {
-	//	Sholder Position	Wrist Position
-		{0,2}, //ARM_DEFAULT
+
+	long ArmPoses[6][4] = {
+	//	cone Sholder Position	cone Wrist Position, cube shoulder, cube wrist
+		{50,5,50,5}, //TRAVEL_POS
+		{133450,5143,125000,4673},// HP_PICKUP
+		{23380,2837,35450,3322},// FLOOR_PICKUP (CONE)
+		{122680,4593,108100,4919},// MID_SCORE
+		{261150,2088,111800,3746}// TOP_SCORE		
 	};
+
+	 
 
 	#define MAX_SHOULDER 500000
 	#define MIN_SHOULDER 0
-	#define MAX_WRIST 3000
+	#define MAX_WRIST 6000
 	#define MIN_WRIST 0
 
-	int ShoulderTarget = 0;
-	int WristTarget =0;
+	long ShoulderTarget = 0;
+	long WristTarget =0;
 	void OperatorControl(){
 		//Button Mappings
 		
-		//Arm Positions
-		if(OpController.GetXButton()) {
-			ShoulderTarget = ArmPoses[HP_PICKUP][SHOULDER_POSE];
-			WristTarget = ArmPoses[HP_PICKUP][WRIST_POSE];
-		} 
-		if(OpController.GetAButton()){
-			ShoulderTarget = ArmPoses[FLOOR_PICKUP][SHOULDER_POSE];
-			WristTarget = ArmPoses[FLOOR_PICKUP][WRIST_POSE];
-		}
-		else if(OpController.GetBButton()){
-			ShoulderTarget = ArmPoses[MID_SCORE][SHOULDER_POSE];
-			WristTarget = ArmPoses[MID_SCORE][WRIST_POSE];
-		}
-		else if(OpController.GetYButton()){
-			ShoulderTarget = ArmPoses[TOP_SCORE][SHOULDER_POSE];
-			WristTarget = ArmPoses[TOP_SCORE][WRIST_POSE];
-		}
-		else if(OpController.GetRightBumper()){
-			ShoulderTarget = ArmPoses[TRAVEL_POS][SHOULDER_POSE];
-			WristTarget = ArmPoses[TRAVEL_POS][WRIST_POSE];
-		}
-
 		//cone cube
-		if(OpController.GetPOV()==90){
+		if(OpController.GetLeftTriggerAxis()>0.5){
 			ObjectType = CUBE;
+			OpController.SetRumble(frc::GenericHID::RumbleType::kBothRumble,0.25);
+		}
+		else if(OpController.GetRightTriggerAxis()>0.5) {
+			ObjectType = CONE;
+			OpController.SetRumble(frc::GenericHID::RumbleType::kBothRumble,0.0);
+		}else{
 			OpController.SetRumble(frc::GenericHID::RumbleType::kBothRumble,0.0);
 		}
-		else if(OpController.GetPOV()==270) {
-			ObjectType = CONE;
-			OpController.SetRumble(frc::GenericHID::RumbleType::kBothRumble,0.5);
-		}
 
+		 		
+		
+		//Arm Positions
+		if(OpController.GetXButton()) SelectedPosition = HP_PICKUP;
+		else if(OpController.GetAButton()) SelectedPosition = FLOOR_PICKUP;
+		else if(OpController.GetBButton()) SelectedPosition = MID_SCORE;
+		else if(OpController.GetYButton()) SelectedPosition=TOP_SCORE;
+		else if(OpController.GetRightBumper()) SelectedPosition=TRAVEL_POS;
+		
+		
 		//homing rouetine
 		if(OpController.GetBackButton()){
 			//hold to home wrist
@@ -305,18 +339,21 @@ class Robot : public frc::TimedRobot {
 		double StickL = OpController.GetLeftY();
 		double StickR = -OpController.GetRightY(); 
 		if(fabs(StickL)>0.15){
-			WristTarget += StickL*5;
-		}
+				WristTarget =Wrist.GetSensorCollection().GetQuadraturePosition()+ StickL*1000;
+				SelectedPosition=-1;
+	    }
 		if(fabs(StickR)>0.15){
-			if(fabs(Shoulder.GetSensorCollection().GetIntegratedSensorPosition()-ShoulderTarget)<2000){
-				ShoulderTarget += StickR*1000;
-			}
+				ShoulderTarget =Shoulder.GetSensorCollection().GetIntegratedSensorPosition() + StickR*16000;
+				SelectedPosition=-1;
 		}	
 		
 
 	}
 
 	void RunWrist(){
+
+		if(SelectedPosition>=0) WristTarget =  ArmPoses[SelectedPosition][ObjectType+WRIST_POSE];
+
 		//Wrist limits
 		if(WristTarget>MAX_WRIST){
 			WristTarget=MAX_WRIST;
@@ -324,14 +361,23 @@ class Robot : public frc::TimedRobot {
 		if(WristTarget<MIN_WRIST){
 			WristTarget=MIN_WRIST;
 		}
-		if(Shoulder.GetSensorCollection().GetIntegratedSensorPosition()>10000 && Shoulder.GetSensorCollection().GetIntegratedSensorPosition() < 20000){
-			WristTarget = ArmPoses[TRAVEL_POS][WRIST_POSE];
+
+
+		if(ObjectType==CONE &&  //prevents hight limit violation
+		((SelectedPosition==TOP_SCORE && Shoulder.GetSensorCollection().GetIntegratedSensorPosition() < 225000) ||
+		 (SelectedPosition!=TOP_SCORE && Shoulder.GetSensorCollection().GetIntegratedSensorPosition() > ArmPoses[HP_PICKUP][SHOULDER_POSE]))){
+			// WristTarget = ArmPoses[TRAVEL_POS][WRIST_POSE];
+			if(Wrist.GetSensorCollection().GetQuadraturePosition() > 2250) WristTarget = MAX_WRIST;
+			else WristTarget = ArmPoses[TRAVEL_POS][WRIST_POSE];
 		}
 
-		// Wrist.Set(ControlMode::Position,WristTarget);
+		Wrist.Set(ControlMode::Position,WristTarget);
 	}
 
 	void RunShoulder(){
+		if(SelectedPosition>=0) ShoulderTarget = ArmPoses[SelectedPosition][ObjectType+SHOULDER_POSE];
+		
+
 		//Shoulder Limits
 		if(ShoulderTarget>MAX_SHOULDER){
 			ShoulderTarget=MAX_SHOULDER;
@@ -339,18 +385,19 @@ class Robot : public frc::TimedRobot {
 		if(ShoulderTarget<MIN_SHOULDER){
 			ShoulderTarget=MIN_SHOULDER;
 		}
-		
+
+		// if(Shoulder.GetStatorCurrent() > ) Shoulder.Set(ControlMode::PercentOutput,0.0); //stops if motor stalls
 		Shoulder.Set(ControlMode::MotionMagic,ShoulderTarget);
 	}
 
 	int InLast = 0;
 	void RunIntake(){
-		if(OpController.GetLeftTriggerAxis()>0){ //outake
+		if(OpController.GetPOV()==0 || dir_stick.GetTrigger()){ //intake
 			Intake.Set(ControlMode::PercentOutput, -1.0);
 			InLast=1;
 		}
-		else if(OpController.GetLeftBumper()){//intake
-			Intake.Set(ControlMode::PercentOutput, .5);
+		else if(OpController.GetPOV()==180 || dir_stick.GetRawButton(2)){//outake
+			Intake.Set(ControlMode::PercentOutput, .75);
 			InLast=0;
 		}
 		else
@@ -359,6 +406,22 @@ class Robot : public frc::TimedRobot {
 			else Intake.Set(ControlMode::PercentOutput,0);
 			
 		}
+
+		if(IsAutonomous()){
+			// if(AutoIntake==INTAKE_HOLD){ //intake
+			// 	Intake.Set(ControlMode::PercentOutput, -1.0);
+			// }
+			if(AutoIntake == INTAKE_EJECT){//outake
+				Intake.Set(ControlMode::PercentOutput, .5);
+			}
+			else if(AutoIntake==INTAKE_HOLD)
+			{
+				Intake.Set(ControlMode::PercentOutput, -0.2);	
+			}else{
+				Intake.Set(ControlMode::PercentOutput,0.0);
+			}
+		}
+
 	}
 
 	void UpdateDriverScreen(){
@@ -389,9 +452,17 @@ class Robot : public frc::TimedRobot {
 			//sprintf(str, "Tgt:%4.2f,%4.2f",TargetDir[RR],TargetDir[FL]);
 		    sprintf(str,"Wrst a%d,t%d",Wrist.GetSensorCollection().GetQuadraturePosition(),WristTarget);
 			frc::SmartDashboard::PutString("DB/String 3", str);
-			sprintf(str, "gyro= %f",Gyro);
+			// sprintf(str, "gyro= %f",Gyro);
+			sprintf(str, "ObjT %d,Pos %d,Gyro %4.2f",ObjectType,SelectedPosition,RobotAngle);
 		    frc::SmartDashboard::PutString("DB/String 4", str);
-
+			sprintf(str, "StKR%f",OpController.GetRightY());
+		    frc::SmartDashboard::PutString("DB/String 5", str);
+			sprintf(str, "StKL%f",OpController.GetLeftY());
+		    frc::SmartDashboard::PutString("DB/String 6", str);
+			sprintf(str,"AutoLine:%d",AutoLine);
+			frc::SmartDashboard::PutString("DB/String 8",str);
+			sprintf(str,"AutoTime:%4.2f",AutoTime.Get().value());
+			frc::SmartDashboard::PutString("DB/String 9",str);
 
 		}else UpdateCount--;
 	}
@@ -418,8 +489,11 @@ class Robot : public frc::TimedRobot {
 								frc::SmartDashboard::PutString("DB/String 6", str);
 								sprintf(str, "T:%d,%d,%d,%d",(int)TargetDir[FL],(int)TargetDir[FR],(int)TargetDir[RL],(int)TargetDir[RR]);
 								frc::SmartDashboard::PutString("DB/String 7", str);
-								sprintf(str, "TMR: %f",TeleTime.Get());
+								// sprintf(str, "TMR: %f",TeleTime.Get());
+								sprintf(str,"SWRVY %4.2f,SWRVX%4.2f",SWRVY,SWRVX);
 								frc::SmartDashboard::PutString("DB/String 8", str);
+								sprintf(str, "Z: %f",SWRVZ);
+								frc::SmartDashboard::PutString("DB/String 9", str);
 
 
 						}else UpdateCount--;
@@ -430,7 +504,7 @@ class Robot : public frc::TimedRobot {
 	void SwerveControl(void){
 		//AutoPilot?
 	    if(IsAutonomousEnabled()){
-			FieldCentric=1; //Auto opertes in field centric mode
+			FieldCentric=0; //; //Auto opertes in field centric mode
 		    SWRVY=AutoDriveY;
 			SWRVX=AutoDriveX; 
 		    SWRVZ=AutoDriveZ;
@@ -557,7 +631,7 @@ class Robot : public frc::TimedRobot {
 			}
 	    }
 		//deermine if we are field or robot centric and make the adjustment here if necessary    
-	    if(FieldCentric||IsAutonomous()) Gyro=RobotAngle*PI/180;
+	    if(FieldCentric) Gyro=RobotAngle*PI/180; // || IsAutonomous()
 	    else Gyro=0;
 
 		//modify the target robot direction from field centric to robot centric for wheel positions and then set them in calc4wheel
@@ -567,16 +641,6 @@ class Robot : public frc::TimedRobot {
 		Calc4WheelTurn();
 
 		for(i=0;i<4;i++) SetDirection(i);
-
-        if(rot_stick.GetRawButton(7)){
-			TeleTime.Stop();
-			TeleTime.Reset();
-			TeleStarted=0;
-			for(i=0;i<4;i++){
-				RobotX[i]=0.0;
-				RobotY[i]=0.0;
-			}
-		}
 
         if(TeleStarted==0&&fabs(ModSpd[IDX])>.1){
 		    TeleTime.Start();
@@ -615,8 +679,8 @@ class Robot : public frc::TimedRobot {
 			OldPosition[i]=NewPosition[i];
 			Dir=ActDir[i]+RobotAngle;
 			Dir=fmod(Dir,360.0);
-			RobotX[i]+=Dist*sin((Dir*PI)/180.0);
-			RobotY[i]+=Dist*cos((Dir*PI)/180.0);
+			RobotY[i]-=Dist*sin((Dir*PI)/180.0);
+			RobotX[i]+=Dist*cos((Dir*PI)/180.0);
 		}
 	}	// End TrackRobot
 
@@ -624,21 +688,21 @@ class Robot : public frc::TimedRobot {
 		double result;
 		switch (i){ 
 			case FL:
-				result=FLDrive.GetSelectedSensorPosition();
+				result=FLDrive.GetSensorCollection().GetIntegratedSensorPosition();
 				break;
 			case FR:
-				result=FRDrive.GetSelectedSensorPosition();
+				result=FRDrive.GetSensorCollection().GetIntegratedSensorPosition();
 				break;
 			case RL:
-				result=RLDrive.GetSelectedSensorPosition();
+				result=RLDrive.GetSensorCollection().GetIntegratedSensorPosition();
 				break;
 			case RR:
-				result=RRDrive.GetSelectedSensorPosition();
+				result=RRDrive.GetSensorCollection().GetIntegratedSensorPosition();
 				break;
 			default:
 				result=0.0;
 		}
-		return(result/772.5); //678.44);
+		return(result/1596);
 	}
 
 
@@ -650,7 +714,7 @@ class Robot : public frc::TimedRobot {
 		int *Array, RemainingInches;
 		int MaxFromDcel,MaxFromAcel;
 		double MaxPower,X,Y,Z ,DeltaA,fctr;
-	    int Command, AccSec, DecInches, Speed, AutoX, AutoY, Orientation, IntakeDIR;
+	    int Command, AccSec, DecInches, Speed, AutoX, AutoY, Orientation;
         //point data to current autonomous command line
 	    Array=AutoArray[AutoLine]; 
 		Command=*Array;
@@ -660,7 +724,7 @@ class Robot : public frc::TimedRobot {
 		DecInches=*(Array+2);
         AutoX=*(Array+4);
 		AutoY=*(Array+5);
-		IntakeDIR=*(Array+7);
+		AutoIntake=*(Array+7);
         
 		//distance to target
 		RemainingInches=sqrt(pow((RobotX[IDX]-AutoX),2)+pow((RobotY[IDX]-AutoY),2));
@@ -684,29 +748,47 @@ class Robot : public frc::TimedRobot {
 		Y=(AutoY-(int)RobotY[IDX]);
 		//Calculate the delta in the robot orientation target
 		DeltaA=(RobotAngle-Orientation);
-		Z=(DeltaA*-1.0)/90.0;
+		Z=(DeltaA*-1.0)/360.0; //90
 		if(Z>1.0)Z=1.0;
 		if(Z<-1.0) Z=-1.0;
 
 		if(AutoLine>NUMAUTOLINES) Command=STOP; //in case no one put in a stop command
-		if(IntakeDIR>0){
-			//Intake.Set(ControlMode::PercentOutput, INTAKE_SPEED);
-		} else if(IntakeDIR<0){
-			//Intake.Set(ControlMode::PercentOutput, -(INTAKE_SPEED));
-		} else {
-			//Intake.Set(ControlMode::PercentOutput, 0);
-		}
+
+		UpdateScreenAuto(Command,AutoLine,AutoX,AutoY,MaxPower,Orientation);
 
 		switch(Command){ //command mode
 		    case START: 
 			            RobotX[IDX]=(double)AutoX;
 						RobotY[IDX]=(double)AutoY;
 						ResetGyro();
-						AutoLine++;
-						FirstPass=1;
-					    TeleStarted=0; //Trigger Timer to reset and run on power to wheels
-		       UpdateScreenAuto( Command, AutoLine, AutoX, AutoY, MaxPower, Orientation);
+					
+						if(AutoTime.Get().value() > 2.0){
+							AutoLine++;
+						    FirstPass=1;
+					        TeleStarted=0; //Trigger Timer to reset and run on power to wheels
+						}
+		      
  		            break;
+			case BALANCE: 
+						fctr=fabs(X)+fabs(Y);
+						if(fctr==0.0) fctr=1.0;
+						
+						//if(RemainingInches>0){
+							AutoDriveX-=(double)((X/(fctr))*MaxPower)/100.0;
+							AutoDriveY=(double)((Y/(fctr))*MaxPower)/100.0;
+					    //AutoDriveY=-(double)((RobotPitch/15)*MaxPower)/100.0;
+						//AutoDriveY=0.0;
+						AutoDriveZ=Z;
+						if(RobotPitch <2  && RobotPitch > -2){
+                            if(AutoTime.Get().value() > 1.5){
+						 	  AutoLine++;
+						 	  FirstPass=1;
+							  break;
+						    }
+						 }else{
+							AutoTime.Reset();
+						 }
+						 break;
 			case MOVE:  //Determine direction and rotation values from autonomous command
 			            fctr=fabs(X)+fabs(Y);
 						if(fctr==0.0) fctr=1.0;
@@ -734,30 +816,37 @@ class Robot : public frc::TimedRobot {
 							} 
 							
 						}
+						
+
 						if((UseYTravel&&(Y*Travel<0))||((!UseYTravel)&&(X*Travel<0))){
                            RemainingInches=0;
-						} 
+						}
 						if(RemainingInches<(Speed/5)){//&&!FirstPass){ //} && fabs(DeltaA)<5){
 						   AutoLine++;
 						   AutoTime.Reset();
 						   FirstPass=1;
 						}
 						break;
-		    case BALANCE: 
-			            RobotX[IDX]+=(double)AutoX;
-						RobotY[IDX]+=(double)AutoY;
+			case ARM_AUTO:
+					SelectedPosition = AutoX;
+					ObjectType = AutoY;
+					if(fabs(ShoulderTarget-Shoulder.GetSensorCollection().GetIntegratedSensorPosition())<5000 
+						&& fabs(WristTarget-Wrist.GetSensorCollection().GetQuadraturePosition())<250
+						&& AutoTime.Get().value()*1000 > AccSec){//arm_pos is almost equal to arm_target
 						AutoLine++;
+						AutoTime.Reset();
 						FirstPass=1;
- 		            break;
+					}
+					break;
 			default:
 			case STOP:
 						AutoDriveX=0.0;
 						AutoDriveY=0.0;
-						AutoDriveZ=0.0;
+						AutoDriveZ=.05;
 						TeleTime.Stop();
 						FirstPass=0;
 						//Intake.Set(ControlMode::PercentOutput, 0);
-					    UpdateScreenAuto( Command, AutoLine, AutoX, AutoY, MaxPower, Orientation);	
+					    //UpdateScreenAuto( Command, AutoLine, AutoX, AutoY, MaxPower, Orientation);	
 						break;
 			
 		}
@@ -822,6 +911,7 @@ class Robot : public frc::TimedRobot {
 		FLSteer.Config_kD(0, DVALUE, TIMEOUT);
 		FLSteer.SetNeutralMode(NeutralMode::Coast);
 		FLSteer.Set(ControlMode::Position, 0.0);
+		FLSteer.ConfigClosedLoopPeakOutput(0,0.3,TIMEOUT);
 
 		FLSteer.GetSensorCollection().SetPulseWidthPosition(FLSteer.GetSensorCollection().GetPulseWidthPosition()%4096 - frc::Preferences::GetDouble("FLZero",0), TIMEOUT);
 
@@ -838,6 +928,7 @@ class Robot : public frc::TimedRobot {
 		FRSteer.Config_kD(0, DVALUE, TIMEOUT);
 		FRSteer.SetNeutralMode(NeutralMode::Coast);
 		FRSteer.Set(ControlMode::Position, 0.0);
+		FRSteer.ConfigClosedLoopPeakOutput(0,0.3,TIMEOUT);
 
 		FRSteer.GetSensorCollection().SetPulseWidthPosition(FRSteer.GetSensorCollection().GetPulseWidthPosition()%4096 - frc::Preferences::GetDouble("FRZero",0), TIMEOUT);
         
@@ -853,6 +944,7 @@ class Robot : public frc::TimedRobot {
 		RLSteer.Config_kD(0, DVALUE, TIMEOUT);
 		RLSteer.SetNeutralMode(NeutralMode::Coast);
 		RLSteer.Set(ControlMode::Position, 0.0);
+		RLSteer.ConfigClosedLoopPeakOutput(0,0.3,TIMEOUT);
 
 		RLSteer.GetSensorCollection().SetPulseWidthPosition(RLSteer.GetSensorCollection().GetPulseWidthPosition()%4096- frc::Preferences::GetDouble("RLZero",0), TIMEOUT);
 
@@ -868,6 +960,7 @@ class Robot : public frc::TimedRobot {
 		RRSteer.Config_kD(0, DVALUE, TIMEOUT);
 		RRSteer.SetNeutralMode(NeutralMode::Coast);
 		RRSteer.Set(ControlMode::Position, 0.0);
+		RRSteer.ConfigClosedLoopPeakOutput(0,0.3,TIMEOUT);
 
 		RRSteer.GetSensorCollection().SetPulseWidthPosition(RRSteer.GetSensorCollection().GetPulseWidthPosition()%4096 - frc::Preferences::GetDouble("RRZero",0), TIMEOUT);
 		  
@@ -936,21 +1029,21 @@ class Robot : public frc::TimedRobot {
 	 	Shoulder.ConfigPeakOutputReverse(-12.0f, TIMEOUT);
 		// Shoulder.ConfigSupplyCurrentLimit(motorcontrol::SupplyCurrentLimitConfiguration{})
 		Shoulder.SelectProfileSlot(0, 0);
-		Shoulder.Config_kP(0, 0.1, TIMEOUT);
+		Shoulder.Config_kP(0, 0.75, TIMEOUT);
 		Shoulder.Config_kI(0, 0.0, TIMEOUT);
-		Shoulder.Config_kD(0, 0.0, TIMEOUT);
+		Shoulder.Config_kD(0, 100.0, TIMEOUT);
 		Shoulder.Config_kF(0, 0.3,TIMEOUT);
-		Shoulder.ConfigSupplyCurrentLimit(motorcontrol::SupplyCurrentLimitConfiguration{true,2,2,.1},TIMEOUT);
+		Shoulder.ConfigSupplyCurrentLimit(motorcontrol::SupplyCurrentLimitConfiguration{true,5,5,.1},TIMEOUT);
 		Shoulder.SetNeutralMode(NeutralMode::Brake);
 		Shoulder.Set(ControlMode::PercentOutput, 0.0);
-		Shoulder.ConfigClosedloopRamp(0.5,TIMEOUT);
+		Shoulder.ConfigClosedloopRamp(0.3,TIMEOUT);
 
 		/* Set relevant frame periods to be at least as fast as periodic rate */
 		Shoulder.SetStatusFramePeriod(StatusFrameEnhanced::Status_13_Base_PIDF0, 10, TIMEOUT);
 		Shoulder.SetStatusFramePeriod(StatusFrameEnhanced::Status_10_MotionMagic, 10, TIMEOUT);
 
 		/* Set acceleration and vcruise velocity - see documentation */
-		Shoulder.ConfigMotionCruiseVelocity(10000, TIMEOUT);
+		Shoulder.ConfigMotionCruiseVelocity(250000, TIMEOUT);
 		Shoulder.ConfigMotionAcceleration(10000, TIMEOUT);
 		Shoulder.ConfigMotionSCurveStrength(4,TIMEOUT);
 
@@ -962,12 +1055,13 @@ class Robot : public frc::TimedRobot {
 	 	Wrist.ConfigPeakOutputReverse(-12.0f, TIMEOUT);
 		Wrist.SelectProfileSlot(0, 0);
 		Wrist.Config_kP(0, PVALUE, TIMEOUT);
-		Wrist.Config_kI(0, IVALUE, TIMEOUT);
-		Wrist.Config_kD(0, DVALUE, TIMEOUT);
+		Wrist.Config_kI(0, 0.0, TIMEOUT);
+		Wrist.Config_kD(0, 0.0, TIMEOUT);
 		Wrist.SetNeutralMode(NeutralMode::Coast);
-		Wrist.ConfigPeakCurrentLimit(1,TIMEOUT);
+		// Wrist.ConfigPeakCurrentLimit(1,TIMEOUT);
 		Wrist.Set(ControlMode::PercentOutput, 0.0);
-		Wrist.ConfigPeakCurrentLimit(.25,TIMEOUT);
+		Wrist.EnableCurrentLimit(true);
+		Wrist.ConfigPeakCurrentLimit(10,TIMEOUT);
 		// Wrist.SetSelectedSensorPosition(fmod(Wrist.GetSelectedSensorPosition(),2048));
 		Wrist.GetSensorCollection().SetQuadraturePosition(0,TIMEOUT);
 	    
