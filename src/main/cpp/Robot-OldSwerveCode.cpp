@@ -56,14 +56,14 @@ int AutoIntake = INTAKE_IDLE;
 
 // autonomous barrel race  RED 1
 #define BRPW 70
-int BALACE_AutoArray[NUMAUTOLINES][8]={
+int BALANCE_AutoArray[NUMAUTOLINES][8]={
 	        //CMD,   Acc mSec,Dec Inches, MaxPwr,TargetX, TargetY, Orientation Deg,IntakeState
 			{START,      0,         0,      0,      0,       0,        0,            0}, //Start at midfield location
 			{ARM_AUTO,   1000,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_HOLD},
 			{ARM_AUTO,   1000,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_EJECT},
-			{ARM_AUTO,   0,			0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_IDLE},
-			{MOVE,	 	 250,		5,		30,		10,		 5,		   0,  INTAKE_IDLE},
-			{BALANCE,	 50,		5,		20,		20,		 0,		   0,  INTAKE_IDLE},
+			{ARM_AUTO,   1000,			0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_IDLE},
+			{MOVE,	 	 250,		5,		30,		0,		 30,		   0,  INTAKE_IDLE},
+			{BALANCE,	 500,		5,		20,		0,		 30,		   0,  INTAKE_IDLE},
 			{STOP,       0,         0,      0,      0,       0,        0,            0},	//STOP
 };
 
@@ -80,9 +80,9 @@ int LEAVE_ZONE_AutoArray[NUMAUTOLINES][8]={
 int MOVE_TEST_AutoArray[NUMAUTOLINES][8]={
 	        //CMD,   Acc mSec,Dec Inches, MaxPwr,TargetX, TargetY, Orientation Deg,IntakeState
 			{START,      0,         0,      0,      0,       0,        0,            0}, //Start at midfield location
-			{MOVE,	 	 500,		5,		20,		0,	 30,		   0,  INTAKE_IDLE},
-		   {BALANCE, 	 50,		5,	    10,		0,	 50,		   0,  INTAKE_IDLE},
-			// {MOVE,	 	 250,		5,		30,		0,		 100,		   0,  INTAKE_IDLE},
+			{MOVE,	 	 500,		5,		20,		0,	    40,		   0,  INTAKE_IDLE},
+		//    {BALANCE, 	 500,		5,	    30,		0,	 50,		   0,  INTAKE_IDLE},
+			{MOVE,	 	 250,		5,		30,		-30,		40,		   0,  INTAKE_IDLE},
 			// {MOVE,	 	 250,		5,		30,		0,		 0,		   0,  INTAKE_IDLE},
 			{STOP,       0,         0,      0,      0,       0,        0,            0},	//STOP
 };
@@ -177,11 +177,12 @@ class Robot : public frc::TimedRobot {
 			StartingLocation = 0;
 			switch (StartingLocation){ 
 				case 0:
-					AutoArray=MOVE_TEST_AutoArray;
+					AutoArray = MOVE_TEST_AutoArray;
+					// AutoArray=BALANCE_AutoArray;
 					// AutoArray=LEAVE_ZONE_AutoArray;		
 					break;
 				default:
-					AutoArray=MOVE_TEST_AutoArray;
+					AutoArray=BALANCE_AutoArray;
 					// AutoArray=LEAVE_ZONE_AutoArray;
 					break;
 			}
@@ -263,6 +264,12 @@ class Robot : public frc::TimedRobot {
         FRZero = FRSteer.GetSensorCollection().GetPulseWidthPosition();
         RLZero = RLSteer.GetSensorCollection().GetPulseWidthPosition();
         RRZero = RRSteer.GetSensorCollection().GetPulseWidthPosition();
+
+		//Read encoder counts and then divide to get degrees of rotation
+    	ActDir[FL]=fmod((FLSteer.GetSensorCollection().GetPulseWidthPosition()/11.38),360.0); //GetPulseWidthPosition()
+		ActDir[FR]=fmod((FRSteer.GetSensorCollection().GetPulseWidthPosition()/11.38),360.0);
+    	ActDir[RL]=fmod((RLSteer.GetSensorCollection().GetPulseWidthPosition()/11.38),360.0);
+    	ActDir[RR]=fmod((RRSteer.GetSensorCollection().GetPulseWidthPosition()/11.38),360.0);
 
 		WristTarget=0;
 		ShoulderTarget=0;
@@ -363,7 +370,7 @@ class Robot : public frc::TimedRobot {
 		}
 
 
-		if(ObjectType==CONE &&  //prevents hight limit violation
+		if(ObjectType==CONE &&  //prevents hight limit violation //`fix rist not moving at top_score
 		((SelectedPosition==TOP_SCORE && Shoulder.GetSensorCollection().GetIntegratedSensorPosition() < 225000) ||
 		 (SelectedPosition!=TOP_SCORE && Shoulder.GetSensorCollection().GetIntegratedSensorPosition() > ArmPoses[HP_PICKUP][SHOULDER_POSE]))){
 			// WristTarget = ArmPoses[TRAVEL_POS][WRIST_POSE];
@@ -492,7 +499,7 @@ class Robot : public frc::TimedRobot {
 								// sprintf(str, "TMR: %f",TeleTime.Get());
 								sprintf(str,"SWRVY %4.2f,SWRVX%4.2f",SWRVY,SWRVX);
 								frc::SmartDashboard::PutString("DB/String 8", str);
-								sprintf(str, "Z: %f",SWRVZ);
+								sprintf(str, "Dir:%f",tempPrint);
 								frc::SmartDashboard::PutString("DB/String 9", str);
 
 
@@ -625,7 +632,7 @@ class Robot : public frc::TimedRobot {
 				// if(rot_stick.GetRawButton(8)) { // button 8 for fast rotation
 				/// 	SWRVZ=pow(2.5*SWRVZ,3);  // show off (or big, heavy frame)
 				// } else {
-				 	SWRVZ=pow(1*SWRVZ,3); // small frame normal rotation
+				 	SWRVZ=(pow(1* SWRVZ,3)); // small frame normal rotation
 				// }
 
 			}
@@ -669,18 +676,22 @@ class Robot : public frc::TimedRobot {
 
     double NewPosition[4],OldPosition[4];
 	//Track robot FL wheel X,Y position in inches Y is long side of field X is width
+    
+	double tempPrint = 0;
+	//Track robot FL wheel X,Y position in inches Y is long side of field X is width
     void TrackRobot(void){
 		int i;
         double Dist,Dir;
 		for(i=0;i<4;i++){
 	     	//Determine distance moved since last time in this routine
 			NewPosition[i]=GetLocation(i);
-			Dist=NewPosition[i]-OldPosition[i];
+			Dist=OldPosition[i]-NewPosition[i];
 			OldPosition[i]=NewPosition[i];
 			Dir=ActDir[i]+RobotAngle;
 			Dir=fmod(Dir,360.0);
-			RobotY[i]-=Dist*sin((Dir*PI)/180.0);
-			RobotX[i]+=Dist*cos((Dir*PI)/180.0);
+			tempPrint = Dir;
+			RobotX[i]-=Dist*sin((Dir*PI)/180.0);
+			RobotY[i]-=Dist*cos((Dir*PI)/180.0);
 		}
 	}	// End TrackRobot
 
@@ -688,24 +699,22 @@ class Robot : public frc::TimedRobot {
 		double result;
 		switch (i){ 
 			case FL:
-				result=FLDrive.GetSensorCollection().GetIntegratedSensorPosition();
+				result=FLDrive.GetSelectedSensorPosition();
 				break;
 			case FR:
-				result=FRDrive.GetSensorCollection().GetIntegratedSensorPosition();
+				result=FRDrive.GetSelectedSensorPosition();
 				break;
 			case RL:
-				result=RLDrive.GetSensorCollection().GetIntegratedSensorPosition();
+				result=RLDrive.GetSelectedSensorPosition();
 				break;
 			case RR:
-				result=RRDrive.GetSensorCollection().GetIntegratedSensorPosition();
+				result=RRDrive.GetSelectedSensorPosition();
 				break;
 			default:
 				result=0.0;
 		}
 		return(result/1596);
 	}
-
-
 
 
 
@@ -744,8 +753,8 @@ class Robot : public frc::TimedRobot {
 		if(MaxPower>Speed)MaxPower=Speed;
 		if(MaxPower<0)MaxPower=0;
 		//Calculate the X,Y direction to target
-		X=(AutoX-(int)RobotX[IDX]);
-		Y=(AutoY-(int)RobotY[IDX]);
+		X=((double)AutoX-RobotX[IDX]);
+		Y=((double)AutoY-RobotY[IDX]);
 		//Calculate the delta in the robot orientation target
 		DeltaA=(RobotAngle-Orientation);
 		Z=(DeltaA*-1.0)/360.0; //90
@@ -762,7 +771,7 @@ class Robot : public frc::TimedRobot {
 						RobotY[IDX]=(double)AutoY;
 						ResetGyro();
 					
-						if(AutoTime.Get().value() > 2.0){
+						if(AutoTime.Get().value() > 2.5){
 							AutoLine++;
 						    FirstPass=1;
 					        TeleStarted=0; //Trigger Timer to reset and run on power to wheels
@@ -770,20 +779,38 @@ class Robot : public frc::TimedRobot {
 		      
  		            break;
 			case BALANCE: 
-						fctr=fabs(X)+fabs(Y);
+						X=0.0;
+						Y=RobotPitch;
+
+						 fctr=fabs(X)+fabs(Y);
 						if(fctr==0.0) fctr=1.0;
 						
-						//if(RemainingInches>0){
-							AutoDriveX-=(double)((X/(fctr))*MaxPower)/100.0;
-							AutoDriveY=(double)((Y/(fctr))*MaxPower)/100.0;
-					    //AutoDriveY=-(double)((RobotPitch/15)*MaxPower)/100.0;
-						//AutoDriveY=0.0;
-						AutoDriveZ=Z;
-						if(RobotPitch <2  && RobotPitch > -2){
-                            if(AutoTime.Get().value() > 1.5){
+							AutoDriveX=(double)((RobotPitch/15)*20)/100.0;
+							AutoDriveY=(double)((Y/(fctr))*15)/100.0;
+		    
+						    AutoDriveZ=0.0; 
+						
+                        if(FirstPass){
+							FirstPass=0;
+							if(fabs(Y)>fabs(X)){
+								Travel=Y;
+								UseYTravel=1;
+							}else{
+                                Travel=X;
+								UseYTravel=0;
+							} 
+							
+						}
+						
+
+						if((UseYTravel&&(Y*Travel<0))||((!UseYTravel)&&(X*Travel<0))){
+                           RemainingInches=0;
+						}
+						
+						if(RobotPitch <5  && RobotPitch > -5){
+                            if(AutoTime.Get().value() > .25){
 						 	  AutoLine++;
 						 	  FirstPass=1;
-							  break;
 						    }
 						 }else{
 							AutoTime.Reset();
@@ -842,7 +869,7 @@ class Robot : public frc::TimedRobot {
 			case STOP:
 						AutoDriveX=0.0;
 						AutoDriveY=0.0;
-						AutoDriveZ=.05;
+						AutoDriveZ=0.01;
 						TeleTime.Stop();
 						FirstPass=0;
 						//Intake.Set(ControlMode::PercentOutput, 0);
@@ -855,8 +882,11 @@ class Robot : public frc::TimedRobot {
 	
 
     }
-
 	 
+
+	
+
+
  private:
   frc::Joystick dir_stick{DIR};  //swerve direction
   frc::Joystick rot_stick{ROT};  //swerve rotation
@@ -1078,6 +1108,8 @@ class Robot : public frc::TimedRobot {
 		 Intake.Config_kP(0, 0.5, TIMEOUT);
 		 Intake.Config_kI(0, 0.0, TIMEOUT);
 		 Intake.Config_kD(0, 0.0, TIMEOUT);
+		 Intake.ConfigContinuousCurrentLimit(20,TIMEOUT);
+		 Intake.EnableCurrentLimit(true);
 		 Intake.Set(ControlMode::PercentOutput, 0.0);
 
 		GyroSensor = new AHRS(frc::SPI::Port::kMXP);
