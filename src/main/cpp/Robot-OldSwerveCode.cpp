@@ -15,6 +15,7 @@
 #include "ctre/Phoenix.h"
 #include <frc/smartdashboard/SendableChooser.h>
 #include <frc/smartdashboard/SmartDashboard.h>
+#include <frc/DigitalOutput.h>
 #include "AHRS.h"
 #define PVALUE 1.50
 #define IVALUE 0.000
@@ -274,7 +275,7 @@ class Robot : public frc::TimedRobot {
 		WristTarget=0;
 		ShoulderTarget=0;
 
-		//homing rouetine
+		//homing routine
 		if(OpController.GetBackButton()){
 			//hold to home wrist
 			Wrist.GetSensorCollection().SetQuadraturePosition(0,TIMEOUT);
@@ -302,22 +303,27 @@ class Robot : public frc::TimedRobot {
 	 
 
 	#define MAX_SHOULDER 500000
-	#define MIN_SHOULDER 0
+	#define MIN_SHOULDER 1000
 	#define MAX_WRIST 6000
-	#define MIN_WRIST 0
+	#define MIN_WRIST -100 
 
 	long ShoulderTarget = 0;
 	long WristTarget =0;
+	int HomeShoulder=0;
 	void OperatorControl(){
 		//Button Mappings
 		
 		//cone cube
 		if(OpController.GetLeftTriggerAxis()>0.5){
 			ObjectType = CUBE;
+			LedIn1.Set(0);
+			LedIn2.Set(1);
 			OpController.SetRumble(frc::GenericHID::RumbleType::kBothRumble,0.25);
 		}
 		else if(OpController.GetRightTriggerAxis()>0.5) {
 			ObjectType = CONE;
+			LedIn1.Set(1);
+			LedIn2.Set(0);
 			OpController.SetRumble(frc::GenericHID::RumbleType::kBothRumble,0.0);
 		}else{
 			OpController.SetRumble(frc::GenericHID::RumbleType::kBothRumble,0.0);
@@ -337,9 +343,12 @@ class Robot : public frc::TimedRobot {
 		if(OpController.GetBackButton()){
 			//hold to home wrist
 			Wrist.GetSensorCollection().SetQuadraturePosition(0,TIMEOUT);
-		}else if(OpController.GetStartButton()){
+		}
+		if(OpController.GetStartButton()){
 			//hold to home Shoulder
-			Shoulder.GetSensorCollection().SetIntegratedSensorPosition(0);
+			HomeShoulder = 1;
+		}else{
+			HomeShoulder =0;
 		}
 
 		//Manual Mode
@@ -372,12 +381,12 @@ class Robot : public frc::TimedRobot {
 
 		if(ObjectType==CONE &&  //prevents hight limit violation //`fix rist not moving at top_score
 		((SelectedPosition==TOP_SCORE && Shoulder.GetSensorCollection().GetIntegratedSensorPosition() < 225000) ||
-		 (SelectedPosition!=TOP_SCORE && Shoulder.GetSensorCollection().GetIntegratedSensorPosition() > ArmPoses[HP_PICKUP][SHOULDER_POSE]))){
+		 (SelectedPosition!=TOP_SCORE && SelectedPosition!=-1 && Shoulder.GetSensorCollection().GetIntegratedSensorPosition() > ArmPoses[HP_PICKUP][SHOULDER_POSE]))){
 			// WristTarget = ArmPoses[TRAVEL_POS][WRIST_POSE];
 			if(Wrist.GetSensorCollection().GetQuadraturePosition() > 2250) WristTarget = MAX_WRIST;
 			else WristTarget = ArmPoses[TRAVEL_POS][WRIST_POSE];
 		}
-
+		
 		Wrist.Set(ControlMode::Position,WristTarget);
 	}
 
@@ -393,8 +402,13 @@ class Robot : public frc::TimedRobot {
 			ShoulderTarget=MIN_SHOULDER;
 		}
 
-		// if(Shoulder.GetStatorCurrent() > ) Shoulder.Set(ControlMode::PercentOutput,0.0); //stops if motor stalls
-		Shoulder.Set(ControlMode::MotionMagic,ShoulderTarget);
+		if(HomeShoulder){
+			Shoulder.Set(ControlMode::PercentOutput,-0.5);
+			if(Shoulder.GetOutputCurrent()>45.0){
+				Shoulder.GetSensorCollection().SetIntegratedSensorPosition(0);
+				HomeShoulder=0;
+			}
+		}else Shoulder.Set(ControlMode::MotionMagic,ShoulderTarget);
 	}
 
 	int InLast = 0;
@@ -466,9 +480,9 @@ class Robot : public frc::TimedRobot {
 		    frc::SmartDashboard::PutString("DB/String 5", str);
 			sprintf(str, "StKL%f",OpController.GetLeftY());
 		    frc::SmartDashboard::PutString("DB/String 6", str);
-			sprintf(str,"AutoLine:%d",AutoLine);
+			sprintf(str,"WrCur:%4.2f",Wrist.GetOutputCurrent());
 			frc::SmartDashboard::PutString("DB/String 8",str);
-			sprintf(str,"AutoTime:%4.2f",AutoTime.Get().value());
+			sprintf(str,"ShCur:%4.2f",Shoulder.GetOutputCurrent());
 			frc::SmartDashboard::PutString("DB/String 9",str);
 
 		}else UpdateCount--;
@@ -908,7 +922,8 @@ class Robot : public frc::TimedRobot {
   TalonFX  Shoulder = {SHOULDER};
 
 //   TalonSRX Intake = {INTAKE};
-  //frc::DigitalInput BallSensor{0};
+  frc::DigitalOutput LedIn1{0};
+  frc::DigitalOutput LedIn2{1};
   //frc::ADXRS450_Gyro Gyro; //small gyro
   AHRS *GyroSensor; //expansion port gyro
   frc::Timer AutoTime; //seconds timer for auto states
@@ -1068,11 +1083,11 @@ class Robot : public frc::TimedRobot {
 		Shoulder.Set(ControlMode::PercentOutput, 0.0);
 		Shoulder.ConfigClosedloopRamp(0.3,TIMEOUT);
 
-		/* Set relevant frame periods to be at least as fast as periodic rate */
+		// Set relevant frame periods to be at least as fast as periodic rate 
 		Shoulder.SetStatusFramePeriod(StatusFrameEnhanced::Status_13_Base_PIDF0, 10, TIMEOUT);
 		Shoulder.SetStatusFramePeriod(StatusFrameEnhanced::Status_10_MotionMagic, 10, TIMEOUT);
 
-		/* Set acceleration and vcruise velocity - see documentation */
+		// Set acceleration and vcruise velocity - see documentation 
 		Shoulder.ConfigMotionCruiseVelocity(250000, TIMEOUT);
 		Shoulder.ConfigMotionAcceleration(10000, TIMEOUT);
 		Shoulder.ConfigMotionSCurveStrength(4,TIMEOUT);
