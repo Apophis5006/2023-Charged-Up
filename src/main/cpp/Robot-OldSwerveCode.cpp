@@ -63,8 +63,8 @@ int BALANCE_AutoArray[NUMAUTOLINES][8]={
 			{ARM_AUTO,   1000,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_HOLD},
 			{ARM_AUTO,   1000,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_EJECT},
 			{ARM_AUTO,   1000,			0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_IDLE},
-			{MOVE,	 	 250,		5,		30,		0,		 30,		   0,  INTAKE_IDLE},
-			{BALANCE,	 500,		5,		20,		0,		 30,		   0,  INTAKE_IDLE},
+			// {MOVE,	 	 250,		5,		30,		0,		 30,		   0,  INTAKE_IDLE},
+			{BALANCE,	 500,		0,		15,		0,		 100,		   0,  INTAKE_IDLE},
 			{STOP,       0,         0,      0,      0,       0,        0,            0},	//STOP
 };
 
@@ -134,10 +134,11 @@ int FirstPass=1,UseYTravel;
 int FieldCentric=0;   //1= feild centric driving
 float RobotAngle=0.0; //angle from Gyro
 float RobotPitch=0.0; //pitch from Gyro, used to balance robot
+float PitchOffset; //offset of pitch to set zero on init
 int IntakeState=0;
 int UpdateCount=0;    //counter to slow screen update so it does not take too many CPU cycles
 int SelectedPosition = -1;
-
+int RampHit=0;
 
 //Swerve Control variables  RR, FR, FL, RL
 double FLZero,FRZero,RRZero,RLZero = 0;
@@ -178,8 +179,8 @@ class Robot : public frc::TimedRobot {
 			StartingLocation = 0;
 			switch (StartingLocation){ 
 				case 0:
-					AutoArray = MOVE_TEST_AutoArray;
-					// AutoArray=BALANCE_AutoArray;
+					// AutoArray = MOVE_TEST_AutoArray;
+					AutoArray=BALANCE_AutoArray;
 					// AutoArray=LEAVE_ZONE_AutoArray;		
 					break;
 				default:
@@ -291,25 +292,28 @@ class Robot : public frc::TimedRobot {
 	#define SHOULDER_POSE 0
 	#define WRIST_POSE 1
 
+	#define MAX_SHOULDER 500000
+	#define MIN_SHOULDER 5000
+	#define MAX_WRIST 6000
+	#define MIN_WRIST 200 
+
+
 	long ArmPoses[6][4] = {
 	//	cone Sholder Position	cone Wrist Position, cube shoulder, cube wrist
-		{50,5,50,5}, //TRAVEL_POS
-		{133450,5143,125000,4673},// HP_PICKUP
-		{23380,2837,35450,3322},// FLOOR_PICKUP (CONE)
-		{122680,4593,108100,4919},// MID_SCORE
-		{261150,2088,111800,3746}// TOP_SCORE		
+		{MIN_SHOULDER,MIN_WRIST,MIN_SHOULDER,MIN_WRIST}, //TRAVEL_POS
+		{152000,5222,141300,5046},// HP_PICKUP
+		{32770,3065,49950,4255},// FLOOR_PICKUP (CONE) //26700 2938
+		{122680,4593,114150,4019},// MID_SCORE
+		{261190,1560,125180,3367}// TOP_SCORE		
 	};
 
 	 
 
-	#define MAX_SHOULDER 500000
-	#define MIN_SHOULDER 1000
-	#define MAX_WRIST 6000
-	#define MIN_WRIST -100 
-
+	
 	long ShoulderTarget = 0;
 	long WristTarget =0;
 	int HomeShoulder=0;
+	int HomeWrist=0;
 	void OperatorControl(){
 		//Button Mappings
 		
@@ -340,16 +344,18 @@ class Robot : public frc::TimedRobot {
 		
 		
 		//homing rouetine
-		if(OpController.GetBackButton()){
+		if(OpController.GetBackButtonPressed()){
 			//hold to home wrist
-			Wrist.GetSensorCollection().SetQuadraturePosition(0,TIMEOUT);
-		}
-		if(OpController.GetStartButton()){
+			HomeWrist=1;
+		}else if(OpController.GetBackButtonReleased()){
+            HomeWrist=2;
+		} 
+
+		
+		if(OpController.GetStartButtonPressed() && !HomeShoulder){
 			//hold to home Shoulder
 			HomeShoulder = 1;
-		}else{
-			HomeShoulder =0;
-		}
+		}else if(OpController.GetStartButtonReleased()) HomeShoulder =0;
 
 		//Manual Mode
 		double StickL = OpController.GetLeftY();
@@ -363,31 +369,40 @@ class Robot : public frc::TimedRobot {
 				SelectedPosition=-1;
 		}	
 		
-
+         
 	}
 
 	void RunWrist(){
 
 		if(SelectedPosition>=0) WristTarget =  ArmPoses[SelectedPosition][ObjectType+WRIST_POSE];
 
-		//Wrist limits
-		if(WristTarget>MAX_WRIST){
-			WristTarget=MAX_WRIST;
-		}
-		if(WristTarget<MIN_WRIST){
-			WristTarget=MIN_WRIST;
-		}
+		//Wrist limits //deemed unneccessary because all values are from array
+		// if(WristTarget>MAX_WRIST){
+		// 	WristTarget=MAX_WRIST;
+		// }
+		// if(WristTarget<MIN_WRIST){
+		// 	WristTarget=MIN_WRIST;
+		// }
 
 
-		if(ObjectType==CONE &&  //prevents hight limit violation //`fix rist not moving at top_score
-		((SelectedPosition==TOP_SCORE && Shoulder.GetSensorCollection().GetIntegratedSensorPosition() < 225000) ||
-		 (SelectedPosition!=TOP_SCORE && SelectedPosition!=-1 && Shoulder.GetSensorCollection().GetIntegratedSensorPosition() > ArmPoses[HP_PICKUP][SHOULDER_POSE]))){
-			// WristTarget = ArmPoses[TRAVEL_POS][WRIST_POSE];
-			if(Wrist.GetSensorCollection().GetQuadraturePosition() > 2250) WristTarget = MAX_WRIST;
-			else WristTarget = ArmPoses[TRAVEL_POS][WRIST_POSE];
-		}
+		// if(ObjectType==CONE &&  //prevents hight limit violation //`fix rist not moving at top_score
+		// ((SelectedPosition==TOP_SCORE && Shoulder.GetSensorCollection().GetIntegratedSensorPosition() < 225000) ||
+		//  (SelectedPosition!=TOP_SCORE && SelectedPosition!=-1 && Shoulder.GetSensorCollection().GetIntegratedSensorPosition() > ArmPoses[HP_PICKUP][SHOULDER_POSE]))){
+		// 	// WristTarget = ArmPoses[TRAVEL_POS][WRIST_POSE];
+		// 	if(Wrist.GetSensorCollection().GetQuadraturePosition() > 2250) WristTarget = MAX_WRIST;
+		// 	else WristTarget = ArmPoses[TRAVEL_POS][WRIST_POSE];
+		// }
 		
-		Wrist.Set(ControlMode::Position,WristTarget);
+		if(HomeWrist==1){
+			Wrist.Set(ControlMode::PercentOutput,-0.2);
+		}else if(HomeWrist==2){
+	        Wrist.GetSensorCollection().SetQuadraturePosition(0);
+			WristTarget=MIN_WRIST;
+			Wrist.ConfigPeakCurrentLimit(3,TIMEOUT);
+			HomeWrist=0;
+		}else{
+			Wrist.Set(ControlMode::Position,WristTarget);
+		} 
 	}
 
 	void RunShoulder(){
@@ -395,18 +410,19 @@ class Robot : public frc::TimedRobot {
 		
 
 		//Shoulder Limits
-		if(ShoulderTarget>MAX_SHOULDER){
-			ShoulderTarget=MAX_SHOULDER;
-		}
-		if(ShoulderTarget<MIN_SHOULDER){
-			ShoulderTarget=MIN_SHOULDER;
-		}
+		// if(ShoulderTarget>MAX_SHOULDER){
+		// 	ShoulderTarget=MAX_SHOULDER;
+		// }
+		// if(ShoulderTarget<MIN_SHOULDER){
+		// 	ShoulderTarget=MIN_SHOULDER;
+		// }
 
-		if(HomeShoulder){
-			Shoulder.Set(ControlMode::PercentOutput,-0.5);
-			if(Shoulder.GetOutputCurrent()>45.0){
+		if(HomeShoulder==1){
+			Shoulder.Set(ControlMode::PercentOutput,-0.2);
+			if(Shoulder.GetOutputCurrent()>=9.0){
 				Shoulder.GetSensorCollection().SetIntegratedSensorPosition(0);
-				HomeShoulder=0;
+				ShoulderTarget=MIN_SHOULDER;
+				HomeShoulder=2;
 			}
 		}else Shoulder.Set(ControlMode::MotionMagic,ShoulderTarget);
 	}
@@ -480,7 +496,7 @@ class Robot : public frc::TimedRobot {
 		    frc::SmartDashboard::PutString("DB/String 5", str);
 			sprintf(str, "StKL%f",OpController.GetLeftY());
 		    frc::SmartDashboard::PutString("DB/String 6", str);
-			sprintf(str,"WrCur:%4.2f",Wrist.GetOutputCurrent());
+			sprintf(str,"Pitch:%4.2f",RobotPitch);
 			frc::SmartDashboard::PutString("DB/String 8",str);
 			sprintf(str,"ShCur:%4.2f",Shoulder.GetOutputCurrent());
 			frc::SmartDashboard::PutString("DB/String 9",str);
@@ -513,7 +529,7 @@ class Robot : public frc::TimedRobot {
 								// sprintf(str, "TMR: %f",TeleTime.Get());
 								sprintf(str,"SWRVY %4.2f,SWRVX%4.2f",SWRVY,SWRVX);
 								frc::SmartDashboard::PutString("DB/String 8", str);
-								sprintf(str, "Dir:%f",tempPrint);
+								sprintf(str, "Ptch:%4.2f,RH:%d",RobotPitch,RampHit);
 								frc::SmartDashboard::PutString("DB/String 9", str);
 
 
@@ -682,10 +698,12 @@ class Robot : public frc::TimedRobot {
 
 	void ReadGyro(void) {
 		RobotAngle = -GyroSensor->GetYaw();//-GyroOffset;
-        RobotPitch = GyroSensor->GetPitch();
+        RobotPitch = GyroSensor->GetPitch() - PitchOffset;
 	}	// End ReadyGyro
 	void ResetGyro(void) {
 		GyroSensor->ZeroYaw();
+		PitchOffset = GyroSensor->GetPitch();
+
 	}	// End ResetGyro
 
     double NewPosition[4],OldPosition[4];
@@ -752,12 +770,13 @@ class Robot : public frc::TimedRobot {
 		//distance to target
 		RemainingInches=sqrt(pow((RobotX[IDX]-AutoX),2)+pow((RobotY[IDX]-AutoY),2));
 		//Max speed percentage based on deceleration value given 
-		MaxFromDcel=(pow(RemainingInches,2)*10000)/pow(DecInches,2);
+		if(DecInches==0) MaxFromDcel=100;
+		else MaxFromDcel=(pow(RemainingInches,2)*10000)/pow(DecInches,2);
 		//Get msec since we started and divide by msec to full power for power limit from acceleration
 		MaxFromAcel=(int)(AutoTime.Get()*100000)/AccSec;
 
-		//MaxFromAcel=100;
-		//MaxFromDcel=100;
+		MaxFromAcel=100;
+		MaxFromDcel=100;
 
         if(MaxFromDcel<MaxFromAcel){
 			MaxPower=(MaxFromDcel*Speed)/100;
@@ -793,16 +812,24 @@ class Robot : public frc::TimedRobot {
 		      
  		            break;
 			case BALANCE: 
-						X=0.0;
-						Y=RobotPitch;
-
-						 fctr=fabs(X)+fabs(Y);
+						                        
+						fctr=fabs(X)+fabs(Y);
 						if(fctr==0.0) fctr=1.0;
 						
-							AutoDriveX=(double)((RobotPitch/15)*20)/100.0;
-							AutoDriveY=(double)((Y/(fctr))*15)/100.0;
+						AutoDriveX=0.0; //(double)((RobotPitch/15)*20)/100.0;
+						if(RobotPitch>12.0) RampHit=1;
+						if(RampHit){
+                            //AutoDriveY=(double)((RobotPitch/15.0)*10.0)/100.0;
+							if(RobotPitch>15.0)RobotPitch=15.0;
+							if(RobotPitch<-15.0)RobotPitch=-15.0;
+							Y=pow((RobotPitch/15.0),5);
+						    AutoDriveY=(double)((Y)*20.0)/100.0;
+							
+						} else{
+							AutoDriveY=(double)((Y/(fctr))*MaxPower)/100.0;
+						}
 		    
-						    AutoDriveZ=0.0; 
+					    AutoDriveZ=0.0; 
 						
                         if(FirstPass){
 							FirstPass=0;
@@ -817,12 +844,14 @@ class Robot : public frc::TimedRobot {
 						}
 						
 
-						if((UseYTravel&&(Y*Travel<0))||((!UseYTravel)&&(X*Travel<0))){
+						if(((UseYTravel&&(Y*Travel<0))||((!UseYTravel)&&(X*Travel<0)))&&!RampHit){
                            RemainingInches=0;
+						   AutoLine++;
+						   FirstPass=1;
 						}
 						
-						if(RobotPitch <5  && RobotPitch > -5){
-                            if(AutoTime.Get().value() > .25){
+						if(RobotPitch <1.0  && RobotPitch > -1.0 && RampHit){
+                            if(AutoTime.Get().value() > 2.0){
 						 	  AutoLine++;
 						 	  FirstPass=1;
 						    }
@@ -922,8 +951,8 @@ class Robot : public frc::TimedRobot {
   TalonFX  Shoulder = {SHOULDER};
 
 //   TalonSRX Intake = {INTAKE};
-  frc::DigitalOutput LedIn1{0};
-  frc::DigitalOutput LedIn2{1};
+  frc::DigitalOutput LedIn1{8};
+  frc::DigitalOutput LedIn2{9};
   //frc::ADXRS450_Gyro Gyro; //small gyro
   AHRS *GyroSensor; //expansion port gyro
   frc::Timer AutoTime; //seconds timer for auto states
@@ -936,6 +965,7 @@ class Robot : public frc::TimedRobot {
 
 		//Camera1= frc::CameraServer::GetInstance()->StartAutomaticCapture(0);
 		RobotInitialized++;
+        GyroSensor = new AHRS(frc::SPI::Port::kMXP);
 
 		//Steer Zeros
     	FLZero = frc::Preferences::GetDouble("FLZero",0);
@@ -1088,9 +1118,9 @@ class Robot : public frc::TimedRobot {
 		Shoulder.SetStatusFramePeriod(StatusFrameEnhanced::Status_10_MotionMagic, 10, TIMEOUT);
 
 		// Set acceleration and vcruise velocity - see documentation 
-		Shoulder.ConfigMotionCruiseVelocity(250000, TIMEOUT);
-		Shoulder.ConfigMotionAcceleration(10000, TIMEOUT);
-		Shoulder.ConfigMotionSCurveStrength(4,TIMEOUT);
+		Shoulder.ConfigMotionCruiseVelocity(20000, TIMEOUT);
+		Shoulder.ConfigMotionAcceleration(100000, TIMEOUT);
+		Shoulder.ConfigMotionSCurveStrength(0,TIMEOUT);
 
 		Wrist.ConfigSelectedFeedbackSensor(FeedbackDevice::QuadEncoder, 0, NOTIMEOUT);	 
 		Wrist.SetSensorPhase(false);
@@ -1099,14 +1129,14 @@ class Robot : public frc::TimedRobot {
 	    Wrist.ConfigPeakOutputForward(+12.0f, TIMEOUT);
 	 	Wrist.ConfigPeakOutputReverse(-12.0f, TIMEOUT);
 		Wrist.SelectProfileSlot(0, 0);
-		Wrist.Config_kP(0, PVALUE, TIMEOUT);
+		Wrist.Config_kP(0, 0.85, TIMEOUT);
 		Wrist.Config_kI(0, 0.0, TIMEOUT);
 		Wrist.Config_kD(0, 0.0, TIMEOUT);
 		Wrist.SetNeutralMode(NeutralMode::Coast);
 		// Wrist.ConfigPeakCurrentLimit(1,TIMEOUT);
 		Wrist.Set(ControlMode::PercentOutput, 0.0);
 		Wrist.EnableCurrentLimit(true);
-		Wrist.ConfigPeakCurrentLimit(10,TIMEOUT);
+		Wrist.ConfigPeakCurrentLimit(40,TIMEOUT);
 		// Wrist.SetSelectedSensorPosition(fmod(Wrist.GetSelectedSensorPosition(),2048));
 		Wrist.GetSensorCollection().SetQuadraturePosition(0,TIMEOUT);
 	    
@@ -1127,8 +1157,7 @@ class Robot : public frc::TimedRobot {
 		 Intake.EnableCurrentLimit(true);
 		 Intake.Set(ControlMode::PercentOutput, 0.0);
 
-		GyroSensor = new AHRS(frc::SPI::Port::kMXP);
-
+		
 		ResetGyro();
 	
 	}
