@@ -97,7 +97,7 @@ int MOVE_TEST_AutoArray[NUMAUTOLINES][8]={
 #define ARM 2
 
 //PS4 Controller defines
-#define OP_PS4 2
+#define OP_CONTROLLER 2
 
 //-------------------CAN BUS DEFINES---------------
 //Swerve CAN bus defines for steering motors
@@ -276,6 +276,7 @@ class Robot : public frc::TimedRobot {
 		WristTarget=0;
 		ShoulderTarget=0;
 
+		#ifdef XBOX_CONTROLLER
 		//homing routine
 		if(OpController.GetBackButton()){
 			//hold to home wrist
@@ -284,9 +285,25 @@ class Robot : public frc::TimedRobot {
 			//hold to home Shoulder
 			Shoulder.GetSensorCollection().SetIntegratedSensorPosition(0);
 		}
+		
 
 		Wrist.Set(ControlMode::PercentOutput, OpController.GetLeftY()*0.5);
 		Shoulder.Set(ControlMode::PercentOutput, -OpController.GetRightY()*0.5);
+
+		#else
+		if(OpController.GetShareButton()){
+			//hold to home wrist
+			Wrist.GetSensorCollection().SetQuadraturePosition(0,TIMEOUT);
+		}else if(OpController.GetPSButton()){
+			//hold to home Shoulder
+			Shoulder.GetSensorCollection().SetIntegratedSensorPosition(0);
+		}
+		
+
+		Wrist.Set(ControlMode::PercentOutput, OpController.GetLeftY());
+		Shoulder.Set(ControlMode::PercentOutput, -OpController.GetRightY());
+
+		#endif
     }
 
 	#define SHOULDER_POSE 0
@@ -302,7 +319,7 @@ class Robot : public frc::TimedRobot {
 	//	cone Sholder Position	cone Wrist Position, cube shoulder, cube wrist
 		{MIN_SHOULDER,MIN_WRIST,MIN_SHOULDER,MIN_WRIST}, //TRAVEL_POS
 		{152000,5222,141300,5046},// HP_PICKUP
-		{32770,3065,49950,4255},// FLOOR_PICKUP (CONE) //26700 2938
+		{32770,3065,49950,4255},// FLOOR_PICKUP (CONE) //26700 2938 
 		{122680,4593,114150,4019},// MID_SCORE
 		{261190,1560,125180,3367}// TOP_SCORE		
 	};
@@ -314,6 +331,8 @@ class Robot : public frc::TimedRobot {
 	long WristTarget =0;
 	int HomeShoulder=0;
 	int HomeWrist=0;
+
+	#ifdef  XBOX_CONTROLLER
 	void OperatorControl(){
 		//Button Mappings
 		
@@ -361,7 +380,7 @@ class Robot : public frc::TimedRobot {
 		double StickL = OpController.GetLeftY();
 		double StickR = -OpController.GetRightY(); 
 		if(fabs(StickL)>0.15){
-				WristTarget =Wrist.GetSensorCollection().GetQuadraturePosition()+ StickL*1000;
+				WristTarget =Wrist.GetSensorCollection().GetQuadraturePosition()+ StickL*500;
 				SelectedPosition=-1;
 	    }
 		if(fabs(StickR)>0.15){
@@ -371,6 +390,66 @@ class Robot : public frc::TimedRobot {
 		
          
 	}
+	#else
+		void OperatorControl(){
+		//Button Mappings
+		
+		//cone cube
+		if(OpController.GetRawAxis(2)>0.5){
+			ObjectType = CUBE;
+			LedIn1.Set(0);
+			LedIn2.Set(1);
+			OpController.SetRumble(frc::GenericHID::RumbleType::kBothRumble,0.25);
+		}
+		else if(OpController.GetRawAxis(3)>0.5) {
+			ObjectType = CONE;
+			LedIn1.Set(1);
+			LedIn2.Set(0);
+			OpController.SetRumble(frc::GenericHID::RumbleType::kBothRumble,0.0);
+		}else{
+			OpController.SetRumble(frc::GenericHID::RumbleType::kBothRumble,0.0);
+		}
+
+		 		
+		
+		//Arm Positions
+		if(OpController.GetRawButton(1)) SelectedPosition = FLOOR_PICKUP;
+		else if(OpController.GetRawButton(2)) SelectedPosition = MID_SCORE;//FLOOR_PICKUP;
+		else if(OpController.GetRawButton(3)) SelectedPosition = HP_PICKUP;//MID_SCORE;
+		else if(OpController.GetRawButton(4)) SelectedPosition=TOP_SCORE;
+		else if(OpController.GetR1Button()) SelectedPosition=TRAVEL_POS;
+		
+		
+		//homing rouetine
+		if(OpController.GetRawButtonPressed(7)){
+			//hold to home wrist
+			HomeWrist=1;
+		}else if(OpController.GetRawButtonReleased(7)){
+            HomeWrist=2;
+		} 
+
+		
+		if(OpController.GetRawButtonPressed(8) && !HomeShoulder){
+			//hold to home Shoulder
+			HomeShoulder = 1;
+		}else if(OpController.GetRawButtonReleased(8)) HomeShoulder =0;
+
+		//Manual Mode
+		double StickL = OpController.GetLeftY();
+		double StickR = -OpController.GetRightY(); 
+		if(fabs(StickL)>0.15){
+				WristTarget = Wrist.GetSensorCollection().GetQuadraturePosition() + StickL*1000;
+				SelectedPosition=-1;
+	    }
+		if(fabs(StickR)>0.15){
+				ShoulderTarget =Shoulder.GetSensorCollection().GetIntegratedSensorPosition() + StickR*16000;
+				SelectedPosition=-1;
+		}	
+		
+         
+	}	
+	#endif
+	
 
 	void RunWrist(){
 
@@ -935,8 +1014,13 @@ class Robot : public frc::TimedRobot {
   frc::Joystick rot_stick{ROT};  //swerve rotation
   frc::Joystick arm_stick{ARM};  //arm functions
 
-  frc::XboxController OpController{OP_PS4};
-  
+  #ifdef XBOX_CONTROLLER
+  frc::XboxController OpController{OP_CONTROLLER};
+  #else
+  frc::PS4Controller OpController{OP_CONTROLLER};
+  #endif
+
+
   TalonFX FLDrive = {FLD};
   TalonFX FRDrive = {FRD};
   TalonFX RLDrive = {RLD};
@@ -1104,10 +1188,10 @@ class Robot : public frc::TimedRobot {
 	 	Shoulder.ConfigPeakOutputReverse(-12.0f, TIMEOUT);
 		// Shoulder.ConfigSupplyCurrentLimit(motorcontrol::SupplyCurrentLimitConfiguration{})
 		Shoulder.SelectProfileSlot(0, 0);
-		Shoulder.Config_kP(0, 0.75, TIMEOUT);
+		Shoulder.Config_kP(0, 0.3, TIMEOUT);
 		Shoulder.Config_kI(0, 0.0, TIMEOUT);
-		Shoulder.Config_kD(0, 100.0, TIMEOUT);
-		Shoulder.Config_kF(0, 0.3,TIMEOUT);
+		Shoulder.Config_kD(0, 50.0, TIMEOUT); //100
+		Shoulder.Config_kF(0, 0.0,TIMEOUT);  //0.3
 		Shoulder.ConfigSupplyCurrentLimit(motorcontrol::SupplyCurrentLimitConfiguration{true,5,5,.1},TIMEOUT);
 		Shoulder.SetNeutralMode(NeutralMode::Brake);
 		Shoulder.Set(ControlMode::PercentOutput, 0.0);
@@ -1118,8 +1202,8 @@ class Robot : public frc::TimedRobot {
 		Shoulder.SetStatusFramePeriod(StatusFrameEnhanced::Status_10_MotionMagic, 10, TIMEOUT);
 
 		// Set acceleration and vcruise velocity - see documentation 
-		Shoulder.ConfigMotionCruiseVelocity(20000, TIMEOUT);
-		Shoulder.ConfigMotionAcceleration(100000, TIMEOUT);
+		Shoulder.ConfigMotionCruiseVelocity(50000, TIMEOUT);
+		Shoulder.ConfigMotionAcceleration(10000, TIMEOUT);
 		Shoulder.ConfigMotionSCurveStrength(0,TIMEOUT);
 
 		Wrist.ConfigSelectedFeedbackSensor(FeedbackDevice::QuadEncoder, 0, NOTIMEOUT);	 
@@ -1129,10 +1213,10 @@ class Robot : public frc::TimedRobot {
 	    Wrist.ConfigPeakOutputForward(+12.0f, TIMEOUT);
 	 	Wrist.ConfigPeakOutputReverse(-12.0f, TIMEOUT);
 		Wrist.SelectProfileSlot(0, 0);
-		Wrist.Config_kP(0, 0.85, TIMEOUT);
+		Wrist.Config_kP(0, 1.0, TIMEOUT); //1.5//.85
 		Wrist.Config_kI(0, 0.0, TIMEOUT);
 		Wrist.Config_kD(0, 0.0, TIMEOUT);
-		Wrist.SetNeutralMode(NeutralMode::Coast);
+		Wrist.SetNeutralMode(NeutralMode::Brake); //`Coast
 		// Wrist.ConfigPeakCurrentLimit(1,TIMEOUT);
 		Wrist.Set(ControlMode::PercentOutput, 0.0);
 		Wrist.EnableCurrentLimit(true);
