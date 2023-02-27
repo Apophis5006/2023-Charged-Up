@@ -481,6 +481,7 @@ class Robot : public frc::TimedRobot {
 			HomeWrist=0;
 		}else{
 			Wrist.Set(ControlMode::Position,WristTarget);
+			Wrist.ConfigPeakCurrentLimit(60,TIMEOUT);
 		} 
 	}
 
@@ -1188,22 +1189,22 @@ class Robot : public frc::TimedRobot {
 	 	Shoulder.ConfigPeakOutputReverse(-12.0f, TIMEOUT);
 		// Shoulder.ConfigSupplyCurrentLimit(motorcontrol::SupplyCurrentLimitConfiguration{})
 		Shoulder.SelectProfileSlot(0, 0);
-		Shoulder.Config_kP(0, 0.3, TIMEOUT);
+		Shoulder.Config_kP(0, 0.4, TIMEOUT);
 		Shoulder.Config_kI(0, 0.0, TIMEOUT);
-		Shoulder.Config_kD(0, 50.0, TIMEOUT); //100
+		Shoulder.Config_kD(0, 40.0, TIMEOUT); //100
 		Shoulder.Config_kF(0, 0.0,TIMEOUT);  //0.3
-		Shoulder.ConfigSupplyCurrentLimit(motorcontrol::SupplyCurrentLimitConfiguration{true,5,5,.1},TIMEOUT);
+		Shoulder.ConfigSupplyCurrentLimit(motorcontrol::SupplyCurrentLimitConfiguration{true,6,6,.2},TIMEOUT);
 		Shoulder.SetNeutralMode(NeutralMode::Brake);
 		Shoulder.Set(ControlMode::PercentOutput, 0.0);
-		Shoulder.ConfigClosedloopRamp(0.3,TIMEOUT);
+		Shoulder.ConfigClosedloopRamp(0.25,TIMEOUT);
 
 		// Set relevant frame periods to be at least as fast as periodic rate 
 		Shoulder.SetStatusFramePeriod(StatusFrameEnhanced::Status_13_Base_PIDF0, 10, TIMEOUT);
 		Shoulder.SetStatusFramePeriod(StatusFrameEnhanced::Status_10_MotionMagic, 10, TIMEOUT);
 
 		// Set acceleration and vcruise velocity - see documentation 
-		Shoulder.ConfigMotionCruiseVelocity(50000, TIMEOUT);
-		Shoulder.ConfigMotionAcceleration(10000, TIMEOUT);
+		Shoulder.ConfigMotionCruiseVelocity(500000, TIMEOUT);
+		Shoulder.ConfigMotionAcceleration(40000, TIMEOUT);
 		Shoulder.ConfigMotionSCurveStrength(0,TIMEOUT);
 
 		Wrist.ConfigSelectedFeedbackSensor(FeedbackDevice::QuadEncoder, 0, NOTIMEOUT);	 
@@ -1215,12 +1216,12 @@ class Robot : public frc::TimedRobot {
 		Wrist.SelectProfileSlot(0, 0);
 		Wrist.Config_kP(0, 1.0, TIMEOUT); //1.5//.85
 		Wrist.Config_kI(0, 0.0, TIMEOUT);
-		Wrist.Config_kD(0, 0.0, TIMEOUT);
+		Wrist.Config_kD(0, 0.2, TIMEOUT);
 		Wrist.SetNeutralMode(NeutralMode::Brake); //`Coast
 		// Wrist.ConfigPeakCurrentLimit(1,TIMEOUT);
 		Wrist.Set(ControlMode::PercentOutput, 0.0);
 		Wrist.EnableCurrentLimit(true);
-		Wrist.ConfigPeakCurrentLimit(40,TIMEOUT);
+		Wrist.ConfigPeakCurrentLimit(50,TIMEOUT);
 		// Wrist.SetSelectedSensorPosition(fmod(Wrist.GetSelectedSensorPosition(),2048));
 		Wrist.GetSensorCollection().SetQuadraturePosition(0,TIMEOUT);
 	    
