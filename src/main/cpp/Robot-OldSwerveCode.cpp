@@ -11,6 +11,7 @@
 #include <frc/TimedRobot.h>
 #include <frc/DriverStation.h>
 #include <frc/Preferences.h>
+#include <frc2/command/PIDCommand.h>
 
 #include "ctre/Phoenix.h"
 #include <frc/smartdashboard/SendableChooser.h>
@@ -60,11 +61,11 @@ int AutoIntake = INTAKE_IDLE;
 int BALANCE_AutoArray[NUMAUTOLINES][8]={
 	        //CMD,   Acc mSec,Dec Inches, MaxPwr,TargetX, TargetY, Orientation Deg,IntakeState
 			{START,      0,         0,      0,      0,       0,        0,            0}, //Start at midfield location
-			{ARM_AUTO,   1000,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_HOLD},
-			{ARM_AUTO,   1000,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_EJECT},
-			{ARM_AUTO,   1000,			0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_IDLE},
+			// {ARM_AUTO,   1000,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_HOLD},
+			// {ARM_AUTO,   1000,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_EJECT},
+			// {ARM_AUTO,   1000,			0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_IDLE},
 			// {MOVE,	 	 250,		5,		30,		0,		 30,		   0,  INTAKE_IDLE},
-			{BALANCE,	 500,		0,		15,		0,		 100,		   0,  INTAKE_IDLE},
+			{BALANCE,	 500,		0,		25,		0,		 100,		   0,  INTAKE_IDLE},
 			{STOP,       0,         0,      0,      0,       0,        0,            0},	//STOP
 };
 
@@ -317,11 +318,13 @@ class Robot : public frc::TimedRobot {
 
 	long ArmPoses[6][4] = {
 	//	cone Sholder Position	cone Wrist Position, cube shoulder, cube wrist
-		{MIN_SHOULDER,MIN_WRIST,MIN_SHOULDER,MIN_WRIST}, //TRAVEL_POS
-		{152000,5222,141300,5046},// HP_PICKUP
-		{32770,3065,49950,4255},// FLOOR_PICKUP (CONE) //26700 2938 
-		{122680,4593,114150,4019},// MID_SCORE
-		{261190,1560,125180,3367}// TOP_SCORE		
+		{MIN_SHOULDER,MIN_WRIST,MIN_SHOULDER,MIN_WRIST}, //TRAVEL_POS	
+		{151000,5222,141300,5046},// HP_PICKUP
+		{23670,3065,49950,4255},// FLOOR_PICKUP (CONE) //26700 2938 
+		{121680,4593,114150,4019},// MID_SCORE
+		{260190,1560,125180,3367}// TOP_SCORE		
+	
+	
 	};
 
 	 
@@ -581,6 +584,17 @@ class Robot : public frc::TimedRobot {
 			sprintf(str,"ShCur:%4.2f",Shoulder.GetOutputCurrent());
 			frc::SmartDashboard::PutString("DB/String 9",str);
 
+			// double Kp = frc::SmartDashboard::GetNumber("DB/Slider 0",1.0);
+			// double Ki = frc::SmartDashboard::GetNumber("DB/Slider 1",0.0);
+			// double Kd = frc::SmartDashboard::GetNumber("DB/Slider 2",0.0);
+			// double Kf = frc::SmartDashboard::GetNumber("DB/Slider 2",0.0);
+
+			// Wrist.Config_kP(0,Kp,TIMEOUT);
+			// Wrist.Config_kI(0,Ki,TIMEOUT);
+			// Wrist.Config_kD(0,Kd,TIMEOUT);
+			// Wrist.Config_kF(0,Kf,TIMEOUT);
+
+
 		}else UpdateCount--;
 	}
 
@@ -640,6 +654,14 @@ class Robot : public frc::TimedRobot {
 			if(rot_stick.GetTrigger()) FieldCentric=0;
 			else FieldCentric=1;	  
 		}
+
+		// if(dir_stick.GetRawButton(5)){ //auto face pickup location
+		// 	static frc2::PIDController AutoRotatePID{1,0,0}; //`move to global variable later
+		// 	AutoRotatePID.SetSetpoint(0.0); //move to init
+		// 	SWRVZ = AutoRotatePID.Calculate(RobotAngle);
+		// }
+		
+
 		//Button 6 on left joystick resets the gyro to 0 degrees
 		if(dir_stick.GetRawButton(9))
 		{
@@ -756,6 +778,15 @@ class Robot : public frc::TimedRobot {
 	    SWRVX=-SWRVY*sin(Gyro)+SWRVX*cos(Gyro);
 	    SWRVY=temp;
 		Calc4WheelTurn();
+
+		/*
+		if(ParkingBreak){
+			TargetDir[FL] = -45;
+			TargetDir[FR] = 45;
+			TargetDir[RR] = -45;
+			TargetDir[FR] = 45;
+		}
+		*/
 
 		for(i=0;i<4;i++) SetDirection(i);
 
@@ -902,8 +933,8 @@ class Robot : public frc::TimedRobot {
                             //AutoDriveY=(double)((RobotPitch/15.0)*10.0)/100.0;
 							if(RobotPitch>15.0)RobotPitch=15.0;
 							if(RobotPitch<-15.0)RobotPitch=-15.0;
-							Y=pow((RobotPitch/15.0),5);
-						    AutoDriveY=(double)((Y)*20.0)/100.0;
+							Y=pow((RobotPitch/15.0),3);
+						    AutoDriveY=(double)((Y)*50.0)/100.0;
 							
 						} else{
 							AutoDriveY=(double)((Y/(fctr))*MaxPower)/100.0;
