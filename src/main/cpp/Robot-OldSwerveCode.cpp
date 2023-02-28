@@ -136,6 +136,7 @@ int FieldCentric=0;   //1= feild centric driving
 float RobotAngle=0.0; //angle from Gyro
 float RobotPitch=0.0; //pitch from Gyro, used to balance robot
 float PitchOffset; //offset of pitch to set zero on init
+frc2::PIDController AutoRotatePID{1.1,0,0.0}; //PID controller for wall snapping
 int IntakeState=0;
 int UpdateCount=0;    //counter to slow screen update so it does not take too many CPU cycles
 int SelectedPosition = -1;
@@ -319,10 +320,14 @@ class Robot : public frc::TimedRobot {
 	long ArmPoses[6][4] = {
 	//	cone Sholder Position	cone Wrist Position, cube shoulder, cube wrist
 		{MIN_SHOULDER,MIN_WRIST,MIN_SHOULDER,MIN_WRIST}, //TRAVEL_POS	
-		{151000,5222,141300,5046},// HP_PICKUP
-		{23670,3065,49950,4255},// FLOOR_PICKUP (CONE) //26700 2938 
+		// {151000,5222,141300,5046},// HP_PICKUP
+		// {23670,3065,49950,4255},// FLOOR_PICKUP (CONE) //26700 2938 
+		// {121680,4593,114150,4019},// MID_SCORE
+		// {260190,1560,125180,3367}// TOP_SCORE		
+		{134690,5090,124500,5046},// HP_PICKUP
+		{29500,3065,47950,4255},// FLOOR_PICKUP (CONE) //26700 2938 
 		{121680,4593,114150,4019},// MID_SCORE
-		{260190,1560,125180,3367}// TOP_SCORE		
+		{261200,1870,125180,3367}// TOP_SCORE		
 	
 	
 	};
@@ -467,13 +472,14 @@ class Robot : public frc::TimedRobot {
 		// }
 
 
-		// if(ObjectType==CONE &&  //prevents hight limit violation //`fix rist not moving at top_score
-		// ((SelectedPosition==TOP_SCORE && Shoulder.GetSensorCollection().GetIntegratedSensorPosition() < 225000) ||
-		//  (SelectedPosition!=TOP_SCORE && SelectedPosition!=-1 && Shoulder.GetSensorCollection().GetIntegratedSensorPosition() > ArmPoses[HP_PICKUP][SHOULDER_POSE]))){
-		// 	// WristTarget = ArmPoses[TRAVEL_POS][WRIST_POSE];
-		// 	if(Wrist.GetSensorCollection().GetQuadraturePosition() > 2250) WristTarget = MAX_WRIST;
-		// 	else WristTarget = ArmPoses[TRAVEL_POS][WRIST_POSE];
-		// }
+		if(ObjectType==CONE &&  //prevents hight limit violation //`fix rist not moving at top_score
+		((SelectedPosition==TOP_SCORE && Shoulder.GetSensorCollection().GetIntegratedSensorPosition() < 225000) ||
+		 (SelectedPosition!=TOP_SCORE && SelectedPosition!=-1 && Shoulder.GetSensorCollection().GetIntegratedSensorPosition() > ArmPoses[HP_PICKUP][SHOULDER_POSE])))
+		{
+			// WristTarget = ArmPoses[TRAVEL_POS][WRIST_POSE];
+			if(Wrist.GetSensorCollection().GetQuadraturePosition() > 2250) WristTarget = MAX_WRIST;
+			else WristTarget = ArmPoses[TRAVEL_POS][WRIST_POSE];
+		}
 		
 		if(HomeWrist==1){
 			Wrist.Set(ControlMode::PercentOutput,-0.2);
@@ -655,11 +661,12 @@ class Robot : public frc::TimedRobot {
 			else FieldCentric=1;	  
 		}
 
-		// if(dir_stick.GetRawButton(5)){ //auto face pickup location
-		// 	static frc2::PIDController AutoRotatePID{1,0,0}; //`move to global variable later
-		// 	AutoRotatePID.SetSetpoint(0.0); //move to init
-		// 	SWRVZ = AutoRotatePID.Calculate(RobotAngle);
-		// }
+		if(rot_stick.GetRawButtonPressed(4)){ //auto face pickup location
+			if(fmod(fabs(RobotAngle),360.0) > 90.0 && fmod(fabs(RobotAngle),360.0) < 270.0) AutoRotatePID.SetSetpoint(180.0);
+			else if(fmod(fabs(RobotAngle),360.0) < 90.0 || fmod(fabs(RobotAngle),360.0) > 270.0) AutoRotatePID.SetSetpoint(0.0); //move to init
+		}
+		if(rot_stick.GetRawButton(4)) SWRVZ = AutoRotatePID.Calculate(fmod(RobotAngle,360))/180;
+		//`button for 180
 		
 
 		//Button 6 on left joystick resets the gyro to 0 degrees
@@ -764,7 +771,9 @@ class Robot : public frc::TimedRobot {
 				// if(rot_stick.GetRawButton(8)) { // button 8 for fast rotation
 				/// 	SWRVZ=pow(2.5*SWRVZ,3);  // show off (or big, heavy frame)
 				// } else {
-				 	SWRVZ=(pow(1* SWRVZ,3)); // small frame normal rotation
+				SWRVZ = sin(SWRVZ);
+				if(dir_stick.GetRawButton(4)) SWRVZ *= 0.2; 
+				
 				// }
 
 			}
