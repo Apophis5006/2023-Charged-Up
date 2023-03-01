@@ -51,8 +51,7 @@ int StartingLocation=0;
 #define HP_PICK_DROP 2
 #define FLOOR_PICKUP 3
 #define MID_SCORE 4
-#define MID_SCORE_DROP 5
-#define TOP_SCORE 6
+#define TOP_SCORE 5
 #define TRAVEL_POS 0
 int ArmPosition = ARM_DEFAULT;
 int ArmManual = 0;
