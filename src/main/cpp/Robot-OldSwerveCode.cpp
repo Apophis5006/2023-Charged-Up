@@ -18,6 +18,13 @@
 #include <frc/smartdashboard/SmartDashboard.h>
 #include <frc/DigitalOutput.h>
 #include "AHRS.h"
+
+#define CAMERA
+
+#ifdef CAMERA
+#include <cameraserver/CameraServer.h>
+#endif
+
 #define PVALUE 1.50
 #define IVALUE 0.000
 #define DVALUE 500000.00
@@ -41,9 +48,11 @@ int StartingLocation=0;
 //Arm Positions
 #define ARM_DEFAULT 0
 #define HP_PICKUP 1
-#define FLOOR_PICKUP 2
-#define MID_SCORE 3 
-#define TOP_SCORE 4
+#define HP_PICK_DROP 2
+#define FLOOR_PICKUP 3
+#define MID_SCORE 4
+#define MID_SCORE_DROP 5
+#define TOP_SCORE 6
 #define TRAVEL_POS 0
 int ArmPosition = ARM_DEFAULT;
 int ArmManual = 0;
@@ -52,8 +61,9 @@ int ArmManual = 0;
 int ObjectType = CONE;
 
 #define INTAKE_IDLE 0
-#define INTAKE_EJECT 1
-#define INTAKE_HOLD 2
+#define INTAKE_IN 1
+#define INTAKE_EJECT 2
+#define INTAKE_HOLD 3
 int AutoIntake = INTAKE_IDLE;
 
 // autonomous barrel race  RED 1
@@ -61,9 +71,10 @@ int AutoIntake = INTAKE_IDLE;
 int BALANCE_AutoArray[NUMAUTOLINES][8]={
 	        //CMD,   Acc mSec,Dec Inches, MaxPwr,TargetX, TargetY, Orientation Deg,IntakeState
 			{START,      0,         0,      0,      0,       0,        0,            0}, //Start at midfield location
-			// {ARM_AUTO,   1000,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_HOLD},
-			// {ARM_AUTO,   1000,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_EJECT},
-			// {ARM_AUTO,   1000,			0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_IDLE},
+			{ARM_AUTO,   1000,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_IN},
+			{ARM_AUTO,   1000,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_HOLD},
+			{ARM_AUTO,   1000,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_EJECT},
+			{ARM_AUTO,   1000,			0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_IDLE},
 			// {MOVE,	 	 250,		5,		30,		0,		 30,		   0,  INTAKE_IDLE},
 			{BALANCE,	 500,		0,		25,		0,		 100,		   0,  INTAKE_IDLE},
 			{STOP,       0,         0,      0,      0,       0,        0,            0},	//STOP
@@ -325,6 +336,7 @@ class Robot : public frc::TimedRobot {
 		// {121680,4593,114150,4019},// MID_SCORE
 		// {260190,1560,125180,3367}// TOP_SCORE		
 		{134690,5090,124500,5046},// HP_PICKUP
+		{124690,5090,124500,5046},// HP_PICK_DROP //` fix actual values
 		{29500,3065,47950,4255},// FLOOR_PICKUP (CONE) //26700 2938 
 		{121680,4593,114150,4019},// MID_SCORE
 		{261200,1870,125180,3367}// TOP_SCORE		
@@ -424,6 +436,7 @@ class Robot : public frc::TimedRobot {
 		if(OpController.GetRawButton(1)) SelectedPosition = FLOOR_PICKUP;
 		else if(OpController.GetRawButton(2)) SelectedPosition = MID_SCORE;//FLOOR_PICKUP;
 		else if(OpController.GetRawButton(3)) SelectedPosition = HP_PICKUP;//MID_SCORE;
+		else if(OpController.GetRawButtonReleased(3)) SelectedPosition = HP_PICK_DROP;
 		else if(OpController.GetRawButton(4)) SelectedPosition=TOP_SCORE;
 		else if(OpController.GetR1Button()) SelectedPosition=TRAVEL_POS;
 		
@@ -433,6 +446,7 @@ class Robot : public frc::TimedRobot {
 			//hold to home wrist
 			HomeWrist=1;
 		}else if(OpController.GetRawButtonReleased(7)){
+			
             HomeWrist=2;
 		} 
 
@@ -534,9 +548,9 @@ class Robot : public frc::TimedRobot {
 		}
 
 		if(IsAutonomous()){
-			// if(AutoIntake==INTAKE_HOLD){ //intake
-			// 	Intake.Set(ControlMode::PercentOutput, -1.0);
-			// }
+			if(AutoIntake==INTAKE_IN){ //intake
+				Intake.Set(ControlMode::PercentOutput, -1.0);
+			}
 			if(AutoIntake == INTAKE_EJECT){//outake
 				Intake.Set(ControlMode::PercentOutput, .5);
 			}
@@ -1083,12 +1097,10 @@ class Robot : public frc::TimedRobot {
   frc::Timer AutoTime; //seconds timer for auto states
   frc::Timer TeleTime;
   frc::Timer SwitchTimer;
-  //cs::UsbCamera Camera1;
 
 
   void RobotInit() {
 
-		//Camera1= frc::CameraServer::GetInstance()->StartAutomaticCapture(0);
 		RobotInitialized++;
         GyroSensor = new AHRS(frc::SPI::Port::kMXP);
 
@@ -1284,7 +1296,14 @@ class Robot : public frc::TimedRobot {
 
 		
 		ResetGyro();
-	
+
+		//Camera
+		#ifdef CAMERA
+		frc::CameraServer::StartAutomaticCapture();
+		//frc::CameraServer::StartAutomaticCapture(1);
+		
+		#endif
+
 	}
 };
 
