@@ -22,6 +22,9 @@
 #define CAMERA
 
 #ifdef CAMERA
+#include <opencv2/core/core.hpp>
+#include <opencv2/core/types.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 #include <cameraserver/CameraServer.h>
 #endif
 
@@ -34,6 +37,8 @@
 #define MOVE  12
 #define ARM_AUTO 13
 #define BALANCE 14
+#define WAIT_AUTO 15
+#define MOVE_TIMED 16
 
 #define NUMAUTOLINES 30
 int (*AutoArray)[8];
@@ -44,7 +49,6 @@ int (*AutoArray)[8];
 //Flag so we don't reinit Gyros etc when switching from Auto to Telop
 int RobotInitialized=0;
 int AutoArraySet=0;
-int StartingLocation=0;
 //Arm Positions
 #define ARM_DEFAULT 0
 #define HP_PICKUP 1
@@ -52,6 +56,8 @@ int StartingLocation=0;
 #define FLOOR_PICKUP 3
 #define MID_SCORE 4
 #define TOP_SCORE 5
+#define CONE_VERTICAL 6
+#define SHUTE_PICKUP 7
 #define TRAVEL_POS 0
 int ArmPosition = ARM_DEFAULT;
 int ArmManual = 0;
@@ -70,12 +76,19 @@ int AutoIntake = INTAKE_IDLE;
 int BALANCE_AutoArray[NUMAUTOLINES][8]={
 	        //CMD,   Acc mSec,Dec Inches, MaxPwr,TargetX, TargetY, Orientation Deg,IntakeState
 			{START,      0,         0,      0,      0,       0,        0,            0}, //Start at midfield location
-			{ARM_AUTO,   1000,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_IN},
-			{ARM_AUTO,   1000,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_HOLD},
-			{ARM_AUTO,   1000,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_EJECT},
-			{ARM_AUTO,   1000,			0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_IDLE},
+			{ARM_AUTO,   3000,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_IN},
+			{WAIT_AUTO,	 1000,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_IN},
+			{ARM_AUTO,   2000,		0,		0,HP_PICKUP,	 0,		   0,  INTAKE_IN},
+			{WAIT_AUTO,	 1000,		0,		0,HP_PICKUP,	 0,		   0,  INTAKE_IN},
+			{ARM_AUTO,   2000,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_IN},
+			{WAIT_AUTO,	 1000,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_IN},
+			{ARM_AUTO,   2000,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_EJECT},
+			{WAIT_AUTO,  500,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_EJECT},
+			{ARM_AUTO,   2000,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_EJECT},
+			{WAIT_AUTO,  500,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_EJECT},
+			// {MOVE_TIMED, 	0,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_EJECT},
 			// {MOVE,	 	 250,		5,		30,		0,		 30,		   0,  INTAKE_IDLE},
-			{BALANCE,	 500,		0,		25,		0,		 100,		   0,  INTAKE_IDLE},
+			{BALANCE,	 500,		0,		20,		0,		 100,		   0,  INTAKE_EJECT}, //was 25 pwr
 			{STOP,       0,         0,      0,      0,       0,        0,            0},	//STOP
 };
 
@@ -163,6 +176,7 @@ double SWRVY;							  //Swerve Control Variable--Represents Y coordinate of driv
 double SWRVX;                             //Swerve Control Variable--Represents X coordinate of drive joystick
 double SWRVZ;                             //Swerve Control Variable--Represents X coordinate of rotate joystick
 float delta =0.0;                         //local variable for determining best way(least delta degrees) to meet rotatioanl target
+int ParkingBreak=0;
 
 //Auto Pilot variables
     float TargetAngle;
@@ -188,12 +202,15 @@ class Robot : public frc::TimedRobot {
 			for(i=0;i<4;i++){
 				OldPosition[i]=GetLocation(i);
 			}
-			StartingLocation = 0;
-			switch (StartingLocation){ 
+			
+			switch (0){ //`fix
 				case 0:
 					// AutoArray = MOVE_TEST_AutoArray;
 					AutoArray=BALANCE_AutoArray;
 					// AutoArray=LEAVE_ZONE_AutoArray;		
+					break;
+				case 1:
+
 					break;
 				default:
 					AutoArray=BALANCE_AutoArray;
@@ -245,8 +262,8 @@ class Robot : public frc::TimedRobot {
 		RunWrist();
 		RunIntake();
 
-		
-
+		if(dir_stick.GetRawButton(3)) ParkingBreak=1;
+		else ParkingBreak = 0;
   }
 
 	void TestPeriodic() override{
@@ -327,18 +344,16 @@ class Robot : public frc::TimedRobot {
 	#define MIN_WRIST 200 
 
 
-	long ArmPoses[6][4] = {
+	long ArmPoses[8][4] = {
 	//	cone Sholder Position	cone Wrist Position, cube shoulder, cube wrist
-		{MIN_SHOULDER,MIN_WRIST,MIN_SHOULDER,MIN_WRIST}, //TRAVEL_POS	
-		// {151000,5222,141300,5046},// HP_PICKUP
-		// {23670,3065,49950,4255},// FLOOR_PICKUP (CONE) //26700 2938 
-		// {121680,4593,114150,4019},// MID_SCORE
-		// {260190,1560,125180,3367}// TOP_SCORE		
-		{134690,5090,124500,5046},// HP_PICKUP
+		{MIN_SHOULDER,MIN_WRIST,MIN_SHOULDER,MIN_WRIST}, //TRAVEL_POS		
+		{130400,5084,129792,5046},// HP_PICKUP
 		{124690,5090,124500,5046},// HP_PICK_DROP //` fix actual values
-		{29500,3065,47950,4255},// FLOOR_PICKUP (CONE) //26700 2938 
-		{121680,4593,114150,4019},// MID_SCORE
-		{261200,1870,125180,3367}// TOP_SCORE		
+		{29954,3235,56127,4214},// FLOOR_PICKUP (CONE) //26700 2938 
+		{124620,4931,114150,4019},// MID_SCORE
+		{270669,2214,125180,3367},// TOP_SCORE		
+		{71762,4955,71762,4955},//CONE_VERTICAL
+		{54265,2129,54265,2129}//SHUTE_PICKUP
 	
 	
 	};
@@ -435,8 +450,10 @@ class Robot : public frc::TimedRobot {
 		if(OpController.GetRawButton(1)) SelectedPosition = FLOOR_PICKUP;
 		else if(OpController.GetRawButton(2)) SelectedPosition = MID_SCORE;//FLOOR_PICKUP;
 		else if(OpController.GetRawButton(3)) SelectedPosition = HP_PICKUP;//MID_SCORE;
-		else if(OpController.GetRawButtonReleased(3)) SelectedPosition = HP_PICK_DROP;
+		// else if(OpController.GetRawButtonReleased(3)) SelectedPosition = HP_PICK_DROP;
 		else if(OpController.GetRawButton(4)) SelectedPosition=TOP_SCORE;
+		else if(OpController.GetPOV()==90) SelectedPosition=CONE_VERTICAL;
+		else if(OpController.GetPOV()==270) SelectedPosition=SHUTE_PICKUP;
 		else if(OpController.GetR1Button()) SelectedPosition=TRAVEL_POS;
 		
 		
@@ -490,7 +507,7 @@ class Robot : public frc::TimedRobot {
 		 (SelectedPosition!=TOP_SCORE && SelectedPosition!=-1 && Shoulder.GetSensorCollection().GetIntegratedSensorPosition() > ArmPoses[HP_PICKUP][SHOULDER_POSE])))
 		{
 			// WristTarget = ArmPoses[TRAVEL_POS][WRIST_POSE];
-			if(Wrist.GetSensorCollection().GetQuadraturePosition() > 2250) WristTarget = MAX_WRIST;
+			if(Wrist.GetSensorCollection().GetQuadraturePosition() > 2500) WristTarget = MAX_WRIST;
 			else WristTarget = ArmPoses[TRAVEL_POS][WRIST_POSE];
 		}
 		
@@ -531,27 +548,29 @@ class Robot : public frc::TimedRobot {
 
 	int InLast = 0;
 	void RunIntake(){
-		if(OpController.GetPOV()==0 || dir_stick.GetTrigger()){ //intake
-			Intake.Set(ControlMode::PercentOutput, -1.0);
-			InLast=1;
-		}
-		else if(OpController.GetPOV()==180 || dir_stick.GetRawButton(2)){//outake
-			Intake.Set(ControlMode::PercentOutput, .75);
-			InLast=0;
-		}
-		else
-		{
-			if(InLast==1) Intake.Set(ControlMode::PercentOutput, -0.2);
-			else Intake.Set(ControlMode::PercentOutput,0);
-			
-		}
-
-		if(IsAutonomous()){
-			if(AutoIntake==INTAKE_IN){ //intake
+		if(!IsAutonomous()){
+			if(OpController.GetPOV()==0 || dir_stick.GetTrigger() || AutoIntake==INTAKE_IN){ //intake
 				Intake.Set(ControlMode::PercentOutput, -1.0);
+				InLast=1;
 			}
-			if(AutoIntake == INTAKE_EJECT){//outake
+			else if(OpController.GetPOV()==180 || dir_stick.GetRawButton(2)){//outake
+				Intake.Set(ControlMode::PercentOutput, .75);
+				InLast=0;
+			}
+			else
+			{
+				if(InLast==1) Intake.Set(ControlMode::PercentOutput, -0.2);
+				else Intake.Set(ControlMode::PercentOutput,0);
+				
+			}
+		}else{ //Autonomous
+			if(AutoIntake==INTAKE_IN){ //intake
+				Intake.Set(ControlMode::PercentOutput, -0.99);
+				InLast=1;
+			}
+			else if(AutoIntake == INTAKE_EJECT){//outake
 				Intake.Set(ControlMode::PercentOutput, .5);
+				InLast=0;
 			}
 			else if(AutoIntake==INTAKE_HOLD)
 			{
@@ -598,7 +617,8 @@ class Robot : public frc::TimedRobot {
 		    frc::SmartDashboard::PutString("DB/String 5", str);
 			sprintf(str, "StKL%f",OpController.GetLeftY());
 		    frc::SmartDashboard::PutString("DB/String 6", str);
-			sprintf(str,"Pitch:%4.2f",RobotPitch);
+			// sprintf(str,"Pitch:%4.2f",RobotPitch);
+			// sprintf(str,"%s",frc::SmartDashboard::GetData("Auto Selector"));
 			frc::SmartDashboard::PutString("DB/String 8",str);
 			sprintf(str,"ShCur:%4.2f",Shoulder.GetOutputCurrent());
 			frc::SmartDashboard::PutString("DB/String 9",str);
@@ -642,7 +662,8 @@ class Robot : public frc::TimedRobot {
 								// sprintf(str, "TMR: %f",TeleTime.Get());
 								sprintf(str,"SWRVY %4.2f,SWRVX%4.2f",SWRVY,SWRVX);
 								frc::SmartDashboard::PutString("DB/String 8", str);
-								sprintf(str, "Ptch:%4.2f,RH:%d",RobotPitch,RampHit);
+								// sprintf(str, "Ptch:%4.2f,RH:%d",RobotPitch,RampHit);
+								sprintf(str,"IN:%d,A%d",AutoIntake,IsAutonomous());
 								frc::SmartDashboard::PutString("DB/String 9", str);
 
 
@@ -666,10 +687,11 @@ class Robot : public frc::TimedRobot {
 			if(SWRVX<-1.0) SWRVX=-1.0;
 		}else{ //Teleop Mode
 			SWRVY=-dir_stick.GetY();
-			if (fabs(SWRVY)<0.05) SWRVY=0.0;
 			SWRVX=dir_stick.GetX();
-			if (fabs(SWRVX)<0.05) SWRVX=0.0;
 			SWRVZ=rot_stick.GetX();
+
+			if (fabs(SWRVY)<=0.05) SWRVY=0.0;
+			if (fabs(SWRVX)<=0.05) SWRVX=0.0;
 			if(rot_stick.GetTrigger()) FieldCentric=0;
 			else FieldCentric=1;	  
 		}
@@ -784,7 +806,8 @@ class Robot : public frc::TimedRobot {
 				// if(rot_stick.GetRawButton(8)) { // button 8 for fast rotation
 				/// 	SWRVZ=pow(2.5*SWRVZ,3);  // show off (or big, heavy frame)
 				// } else {
-				SWRVZ = sin(SWRVZ);
+				int sign = fabs(SWRVZ)/SWRVZ;
+				SWRVZ = pow(SWRVZ,2)*sign;//sin(SWRVZ);
 				if(dir_stick.GetRawButton(4)) SWRVZ *= 0.2; 
 				
 				// }
@@ -799,19 +822,43 @@ class Robot : public frc::TimedRobot {
 	    temp=SWRVY*cos(Gyro)+SWRVX*sin(Gyro);
 	    SWRVX=-SWRVY*sin(Gyro)+SWRVX*cos(Gyro);
 	    SWRVY=temp;
+
+		if(!IsAutonomous()){
+			SWRVX = SWRVX; //pow(SWRVX,3)
+			SWRVY = SWRVY;//pow(SWRVY,3)
+
+			if(dir_stick.GetRawButton(4)) SWRVX *= 0.2; 
+			if(dir_stick.GetRawButton(4)) SWRVY *= 0.2; 
+
+			// if (SWRVX > 0.1) {
+			// 	SWRVX = (0.1 + pow(SWRVX,3)) /1.1;
+			// } else if (SWRVX < -0.1) {
+			// 	SWRVX = (-0.1 + pow(SWRVX,3)) /1.1;
+			// }
+			// if (SWRVY > 0.1) {
+			// 	SWRVY = (0.1 + pow(SWRVY,3)) /1.1;
+			// } else if (SWRVX < -0.1) {
+			// 	SWRVY = (-0.1 + pow(SWRVY,3)) /1.1;
+			// }
+
+		}
 		Calc4WheelTurn();
 
-		/*
+		for(i=0;i<4;i++) SetDirection(i);
+		
 		if(ParkingBreak){
 			TargetDir[FL] = -45;
 			TargetDir[FR] = 45;
 			TargetDir[RR] = -45;
-			TargetDir[FR] = 45;
+			TargetDir[RL] = 45;
+			SpeedPolarity[FL] = 0;
+			SpeedPolarity[FR] = 0;
+			SpeedPolarity[RL] = 0;
+			SpeedPolarity[RR] = 0;
 		}
-		*/
+		
 
-		for(i=0;i<4;i++) SetDirection(i);
-
+		
         if(TeleStarted==0&&fabs(ModSpd[IDX])>.1){
 		    TeleTime.Start();
 			TeleTime.Reset();
@@ -956,7 +1003,7 @@ class Robot : public frc::TimedRobot {
 							if(RobotPitch>15.0)RobotPitch=15.0;
 							if(RobotPitch<-15.0)RobotPitch=-15.0;
 							Y=pow((RobotPitch/15.0),3);
-						    AutoDriveY=(double)((Y)*50.0)/100.0;
+						    AutoDriveY=(double)((Y)*35.0)/100.0; //Pwr was 50
 							
 						} else{
 							AutoDriveY=(double)((Y/(fctr))*MaxPower)/100.0;
@@ -977,20 +1024,23 @@ class Robot : public frc::TimedRobot {
 						}
 						
 
-						if(((UseYTravel&&(Y*Travel<0))||((!UseYTravel)&&(X*Travel<0)))&&!RampHit){
+						if((((UseYTravel&&(Y*Travel<0))||((!UseYTravel)&&(X*Travel<0)))&&!RampHit)||AutoTime.Get().value()>3.0){
                            RemainingInches=0;
 						   AutoLine++;
 						   FirstPass=1;
 						}
 						
-						if(RobotPitch <1.0  && RobotPitch > -1.0 && RampHit){
+						if(RampHit){
+							if(RobotPitch <1.0  && RobotPitch > -1.0 && RampHit){
                             if(AutoTime.Get().value() > 2.0){
 						 	  AutoLine++;
+							  AutoTime.Reset();
 						 	  FirstPass=1;
 						    }
 						 }else{
 							AutoTime.Reset();
 						 }
+						}
 						 break;
 			case MOVE:  //Determine direction and rotation values from autonomous command
 			            fctr=fabs(X)+fabs(Y);
@@ -1035,17 +1085,31 @@ class Robot : public frc::TimedRobot {
 					ObjectType = AutoY;
 					if(fabs(ShoulderTarget-Shoulder.GetSensorCollection().GetIntegratedSensorPosition())<5000 
 						&& fabs(WristTarget-Wrist.GetSensorCollection().GetQuadraturePosition())<250
-						&& AutoTime.Get().value()*1000 > AccSec){//arm_pos is almost equal to arm_target
+						|| AutoTime.Get().value()*1000 > AccSec){//arm_pos is almost equal to arm_target
 						AutoLine++;
 						AutoTime.Reset();
 						FirstPass=1;
 					}
 					break;
+			case MOVE_TIMED:
+				AutoDriveX=0.0;
+				AutoDriveY=0.1;
+				AutoDriveZ=0.0;
+				AccSec=2000;
+			case WAIT_AUTO:
+				if(AutoTime.Get().value() * 1000 > AccSec){
+						AutoLine++;
+					    FirstPass=1;
+						AutoTime.Reset();
+				        TeleStarted=0; //Trigger Timer to reset and run on power to wheels
+				}
+				break;
 			default:
 			case STOP:
 						AutoDriveX=0.0;
 						AutoDriveY=0.0;
-						AutoDriveZ=0.01;
+						AutoDriveZ=0.0;
+						ParkingBreak=1;
 						TeleTime.Stop();
 						FirstPass=0;
 						//Intake.Set(ControlMode::PercentOutput, 0);
@@ -1296,16 +1360,57 @@ class Robot : public frc::TimedRobot {
 		
 		ResetGyro();
 
-		//Camera
-		#ifdef CAMERA
 		frc::CameraServer::StartAutomaticCapture();
-		//frc::CameraServer::StartAutomaticCapture(1);
+		//std::thread visionThread(VisionThread);
+		//visionThread.detach();
+  }
+
+  #ifdef CAMERA 
+  static void VisionThread() {
+		//Camera
 		
-		#endif
+		cs::UsbCamera camera = frc::CameraServer::StartAutomaticCapture();
+		// frc::CameraServer::RemoveCamera("USB Camera 0");
+		camera.SetResolution(1024,768);
+		cs::CvSink cvSink = frc::CameraServer::GetVideo();
+		cs::CvSource outputStream = frc::CameraServer::PutVideo("Flipped", 1024,768);
+		cv::Mat src;
+		cv::Mat dst;
+		cv::flip(src, dst, 0);
+
+		
+		
+		while (true) {
+			if (cvSink.GrabFrame(src) == 0) {
+				outputStream.NotifyError(cvSink.GetError());
+				continue;
+			}
+
+		cv::flip(src, dst, 0);
+
+		// rectangle(dst, cv::Point(100,100), cv::Point(400,400), cv::Scalar(255,255,255), 5);
+		outputStream.PutFrame(dst);
+			
+		}
+
+
+		//frc::CameraServer::StartAutomaticCapture(1);
+				
+		
 
 	}
-};
+	#endif
 
+	// void RobotInit() override {
+	// 	std::thread visionThread(VisionThread);
+	// 	visionThread.detach();
+	// }
+
+};
 #ifndef RUNNING_FRC_TESTS
-int main() { return frc::StartRobot<Robot>(); }
+int main() { 
+	
+	return frc::StartRobot<Robot>(); 
+
+}
 #endif
