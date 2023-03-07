@@ -619,6 +619,7 @@ class Robot : public frc::TimedRobot {
 		    frc::SmartDashboard::PutString("DB/String 6", str);
 			// sprintf(str,"Pitch:%4.2f",RobotPitch);
 			// sprintf(str,"%s",frc::SmartDashboard::GetData("Auto Selector"));
+			sprintf(str,"V:%4.2f",FLDrive.GetSelectedSensorVelocity());
 			frc::SmartDashboard::PutString("DB/String 8",str);
 			sprintf(str,"ShCur:%4.2f",Shoulder.GetOutputCurrent());
 			frc::SmartDashboard::PutString("DB/String 9",str);
@@ -866,10 +867,11 @@ class Robot : public frc::TimedRobot {
 		}
 
         //send the drive motor speeds to the motor controllers
-		FLDrive.Set(ControlMode::PercentOutput,-CVTSpeed(SpeedPolarity[FL]*-ModSpd[FL]));
-		FRDrive.Set(ControlMode::PercentOutput,CVTSpeed(SpeedPolarity[FR]*-ModSpd[FR]));
-		RLDrive.Set(ControlMode::PercentOutput,-CVTSpeed(SpeedPolarity[RL]*-ModSpd[RL]));
-		RRDrive.Set(ControlMode::PercentOutput,CVTSpeed(SpeedPolarity[RR]*-ModSpd[RR]));
+		// FLDrive.Set(ControlMode::PercentOutput,-CVTSpeed(SpeedPolarity[FL]*-ModSpd[FL]));
+		FLDrive.Set(ControlMode::Velocity,1023*(-CVTSpeed(SpeedPolarity[FL]*-ModSpd[FL])));
+		FRDrive.Set(ControlMode::Velocity,1023*(CVTSpeed(SpeedPolarity[FR]*-ModSpd[FR])));
+		RLDrive.Set(ControlMode::Velocity,1023*(-CVTSpeed(SpeedPolarity[RL]*-ModSpd[RL])));
+		RRDrive.Set(ControlMode::Velocity,1023*(CVTSpeed(SpeedPolarity[RR]*-ModSpd[RR])));
 		FLSteer.Set(ControlMode::Position, -(TargetDir[FL]/360.0)*4096);
 	    FRSteer.Set(ControlMode::Position, -(TargetDir[FR]/360.0)*4096);
 	    RRSteer.Set(ControlMode::Position, -(TargetDir[RR]/360.0)*4096);
@@ -1247,9 +1249,10 @@ class Robot : public frc::TimedRobot {
 	    RLDrive.ConfigPeakOutputForward(+12.0f, TIMEOUT);
 	 	RLDrive.ConfigPeakOutputReverse(-12.0f, TIMEOUT);
 		RLDrive.SelectProfileSlot(0, 0);
-		RLDrive.Config_kP(0, 0.5, TIMEOUT);
+		RLDrive.Config_kP(0, 0.0, TIMEOUT);
 		RLDrive.Config_kI(0, 0.0, TIMEOUT);
 		RLDrive.Config_kD(0, 0.0, TIMEOUT);
+		RLDrive.Config_kF(0, 1.0, TIMEOUT);
 		RLDrive.SetNeutralMode(NeutralMode::Coast);
 		RLDrive.Set(ControlMode::PercentOutput, 0.0);
 
@@ -1261,9 +1264,10 @@ class Robot : public frc::TimedRobot {
 	    RRDrive.ConfigPeakOutputForward(+12.0f, TIMEOUT);
 	 	RRDrive.ConfigPeakOutputReverse(-12.0f, TIMEOUT);
 		RRDrive.SelectProfileSlot(0, 0);
-		RRDrive.Config_kP(0, 0.5, TIMEOUT);
+		RRDrive.Config_kP(0, 0.0, TIMEOUT);
 		RRDrive.Config_kI(0, 0.0, TIMEOUT);
 		RRDrive.Config_kD(0, 0.0, TIMEOUT);
+		RRDrive.Config_kF(0, 1.0, TIMEOUT);
 		RRDrive.SetNeutralMode(NeutralMode::Coast);
 		RRDrive.Set(ControlMode::PercentOutput, 0.0);
 
@@ -1275,9 +1279,10 @@ class Robot : public frc::TimedRobot {
 	    FRDrive.ConfigPeakOutputForward(+12.0f, TIMEOUT);
 	 	FRDrive.ConfigPeakOutputReverse(-12.0f, TIMEOUT);
 		FRDrive.SelectProfileSlot(0, 0);
-		FRDrive.Config_kP(0, 0.5, TIMEOUT);
+		FRDrive.Config_kP(0, 0.0, TIMEOUT);
 		FRDrive.Config_kI(0, 0.0, TIMEOUT);
 		FRDrive.Config_kD(0, 0.0, TIMEOUT);
+		FRDrive.Config_kF(0, 1.0, TIMEOUT);
 		FRDrive.SetNeutralMode(NeutralMode::Coast);
 		FRDrive.Set(ControlMode::PercentOutput, 0.0);
 
@@ -1289,9 +1294,10 @@ class Robot : public frc::TimedRobot {
 	    FLDrive.ConfigPeakOutputForward(+12.0f, TIMEOUT);
 	 	FLDrive.ConfigPeakOutputReverse(-12.0f, TIMEOUT);
 		FLDrive.SelectProfileSlot(0, 0);
-		FLDrive.Config_kP(0, 0.5, TIMEOUT);
+		FLDrive.Config_kP(0, 0.0, TIMEOUT); //0.5
 		FLDrive.Config_kI(0, 0.0, TIMEOUT);
 		FLDrive.Config_kD(0, 0.0, TIMEOUT);
+		FLDrive.Config_kF(0, 1.0, TIMEOUT);
 		FLDrive.SetNeutralMode(NeutralMode::Coast);
 		FLDrive.Set(ControlMode::PercentOutput, 0.0);
 
