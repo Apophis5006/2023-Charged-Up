@@ -176,7 +176,7 @@ double SWRVY;							  //Swerve Control Variable--Represents Y coordinate of driv
 double SWRVX;                             //Swerve Control Variable--Represents X coordinate of drive joystick
 double SWRVZ;                             //Swerve Control Variable--Represents X coordinate of rotate joystick
 float delta =0.0;                         //local variable for determining best way(least delta degrees) to meet rotatioanl target
-int ParkingBreak=0;
+
 
 //Auto Pilot variables
     float TargetAngle;
@@ -262,8 +262,6 @@ class Robot : public frc::TimedRobot {
 		RunWrist();
 		RunIntake();
 
-		if(dir_stick.GetRawButton(3)) ParkingBreak=1;
-		else ParkingBreak = 0;
   }
 
 	void TestPeriodic() override{
@@ -343,6 +341,8 @@ class Robot : public frc::TimedRobot {
 	#define MAX_WRIST 6000
 	#define MIN_WRIST 200 
 
+	#define SHOULDER_OFFSET (-5000)
+	#define WRIST_OFFSET (0)
 
 	long ArmPoses[8][4] = {
 	//	cone Sholder Position	cone Wrist Position, cube shoulder, cube wrist
@@ -358,9 +358,6 @@ class Robot : public frc::TimedRobot {
 	
 	};
 
-	 
-
-	
 	long ShoulderTarget = 0;
 	long WristTarget =0;
 	int HomeShoulder=0;
@@ -492,7 +489,7 @@ class Robot : public frc::TimedRobot {
 	void RunWrist(){
 
 		if(SelectedPosition>=0) WristTarget =  ArmPoses[SelectedPosition][ObjectType+WRIST_POSE];
-
+		if(SelectedPosition>0) WristTarget = WristTarget + WRIST_OFFSET;
 		//Wrist limits //deemed unneccessary because all values are from array
 		// if(WristTarget>MAX_WRIST){
 		// 	WristTarget=MAX_WRIST;
@@ -526,6 +523,7 @@ class Robot : public frc::TimedRobot {
 
 	void RunShoulder(){
 		if(SelectedPosition>=0) ShoulderTarget = ArmPoses[SelectedPosition][ObjectType+SHOULDER_POSE];
+		if(SelectedPosition>0) ShoulderTarget = ShoulderTarget +  SHOULDER_OFFSET;
 		
 
 		//Shoulder Limits
@@ -847,16 +845,7 @@ class Robot : public frc::TimedRobot {
 
 		for(i=0;i<4;i++) SetDirection(i);
 		
-		if(ParkingBreak){
-			TargetDir[FL] = -45;
-			TargetDir[FR] = 45;
-			TargetDir[RR] = -45;
-			TargetDir[RL] = 45;
-			SpeedPolarity[FL] = 0;
-			SpeedPolarity[FR] = 0;
-			SpeedPolarity[RL] = 0;
-			SpeedPolarity[RR] = 0;
-		}
+
 		
 
 		
@@ -1110,8 +1099,7 @@ class Robot : public frc::TimedRobot {
 			case STOP:
 						AutoDriveX=0.0;
 						AutoDriveY=0.0;
-						AutoDriveZ=0.0;
-						ParkingBreak=1;
+						AutoDriveZ=0.01;
 						TeleTime.Stop();
 						FirstPass=0;
 						//Intake.Set(ControlMode::PercentOutput, 0);
@@ -1188,7 +1176,7 @@ class Robot : public frc::TimedRobot {
 		FLSteer.Config_kD(0, DVALUE, TIMEOUT);
 		FLSteer.SetNeutralMode(NeutralMode::Coast);
 		FLSteer.Set(ControlMode::Position, 0.0);
-		FLSteer.ConfigClosedLoopPeakOutput(0,0.3,TIMEOUT);
+		FLSteer.ConfigClosedLoopPeakOutput(0,0.6,TIMEOUT);
 
 		FLSteer.GetSensorCollection().SetPulseWidthPosition(FLSteer.GetSensorCollection().GetPulseWidthPosition()%4096 - frc::Preferences::GetDouble("FLZero",0), TIMEOUT);
 
@@ -1205,7 +1193,7 @@ class Robot : public frc::TimedRobot {
 		FRSteer.Config_kD(0, DVALUE, TIMEOUT);
 		FRSteer.SetNeutralMode(NeutralMode::Coast);
 		FRSteer.Set(ControlMode::Position, 0.0);
-		FRSteer.ConfigClosedLoopPeakOutput(0,0.3,TIMEOUT);
+		FRSteer.ConfigClosedLoopPeakOutput(0,0.6,TIMEOUT);
 
 		FRSteer.GetSensorCollection().SetPulseWidthPosition(FRSteer.GetSensorCollection().GetPulseWidthPosition()%4096 - frc::Preferences::GetDouble("FRZero",0), TIMEOUT);
         
@@ -1221,7 +1209,7 @@ class Robot : public frc::TimedRobot {
 		RLSteer.Config_kD(0, DVALUE, TIMEOUT);
 		RLSteer.SetNeutralMode(NeutralMode::Coast);
 		RLSteer.Set(ControlMode::Position, 0.0);
-		RLSteer.ConfigClosedLoopPeakOutput(0,0.3,TIMEOUT);
+		RLSteer.ConfigClosedLoopPeakOutput(0,0.6,TIMEOUT);
 
 		RLSteer.GetSensorCollection().SetPulseWidthPosition(RLSteer.GetSensorCollection().GetPulseWidthPosition()%4096- frc::Preferences::GetDouble("RLZero",0), TIMEOUT);
 
@@ -1237,7 +1225,7 @@ class Robot : public frc::TimedRobot {
 		RRSteer.Config_kD(0, DVALUE, TIMEOUT);
 		RRSteer.SetNeutralMode(NeutralMode::Coast);
 		RRSteer.Set(ControlMode::Position, 0.0);
-		RRSteer.ConfigClosedLoopPeakOutput(0,0.3,TIMEOUT);
+		RRSteer.ConfigClosedLoopPeakOutput(0,0.6,TIMEOUT);
 
 		RRSteer.GetSensorCollection().SetPulseWidthPosition(RRSteer.GetSensorCollection().GetPulseWidthPosition()%4096 - frc::Preferences::GetDouble("RRZero",0), TIMEOUT);
 		  
