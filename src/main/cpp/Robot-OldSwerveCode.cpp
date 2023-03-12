@@ -19,7 +19,7 @@
 #include <frc/DigitalOutput.h>
 #include "AHRS.h"
 
-#define CAMERA
+// #define CAMERA
 
 #ifdef CAMERA
 #include <opencv2/core/core.hpp>
@@ -102,13 +102,35 @@ int LEAVE_ZONE_AutoArray[NUMAUTOLINES][8]={
 			{STOP,       0,         0,      0,      0,       0,        0,            0},	//STOP
 };
 
+int VL_AutoArray[NUMAUTOLINES][8]={
+	        //CMD,   Acc mSec,Dec Inches, MaxPwr,TargetX, TargetY, Orientation Deg,IntakeState
+			{START,      0,         0,      0,      0,       0,        0,  INTAKE_IN}, //Start at midfield location
+			{ARM_AUTO,   3000,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_IN},
+			{WAIT_AUTO,	 1000,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_IN},
+			{ARM_AUTO,   2000,		0,		0,HP_PICKUP,	 0,		   0,  INTAKE_IN},
+			{WAIT_AUTO,	 1000,		0,		0,HP_PICKUP,	 0,		   0,  INTAKE_IN},
+			{ARM_AUTO,   2000,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_IN},
+			{WAIT_AUTO,	 1000,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_IN},
+			{ARM_AUTO,   2000,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_EJECT},
+			{WAIT_AUTO,  500,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_EJECT},
+			{ARM_AUTO,   2000,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_EJECT},
+			{WAIT_AUTO,  500,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_EJECT},
+			{MOVE,	 	 250,		0,		30,		0,		 150,	   0,  INTAKE_IN},
+			{ARM_AUTO,   3000,		0,		0,FLOOR_PICKUP,	 CUBE,		   0,  INTAKE_IN},
+			{MOVE,	 	 10,	    5,		15,		-16,		 195,	   0,  INTAKE_IN},
+			{ARM_AUTO,   3000,		0,		0,TRAVEL_POS,	 CUBE,		   0,  INTAKE_IN},
+			{MOVE,	 	 250,		5,		30,		0,		 0,		  0,  INTAKE_IN},
+			{STOP,       0,         0,      0,      0,       0,        0,            0},	//STOP
+}; 
+
 int MOVE_TEST_AutoArray[NUMAUTOLINES][8]={
 	        //CMD,   Acc mSec,Dec Inches, MaxPwr,TargetX, TargetY, Orientation Deg,IntakeState
 			{START,      0,         0,      0,      0,       0,        0,            0}, //Start at midfield location
-			{MOVE,	 	 500,		5,		20,		0,	    40,		   0,  INTAKE_IDLE},
+			{MOVE,	 	 500,		5,		20,		0,	    100,		   0,  INTAKE_IDLE},
 		//    {BALANCE, 	 500,		5,	    30,		0,	 50,		   0,  INTAKE_IDLE},
-			{MOVE,	 	 250,		5,		30,		-30,		40,		   0,  INTAKE_IDLE},
-			// {MOVE,	 	 250,		5,		30,		0,		 0,		   0,  INTAKE_IDLE},
+			// {MOVE,	 	 250,		5,		20,		-30,		40,		   0,  INTAKE_IDLE},
+			// {MOVE,	 	 250,		5,		20,		-30,		0,		   0,  INTAKE_IDLE},
+			// {MOVE,	 	 250,		5,		20,		0,		 0,		   0,  INTAKE_IDLE},
 			{STOP,       0,         0,      0,      0,       0,        0,            0},	//STOP
 };
 
@@ -146,7 +168,7 @@ int MOVE_TEST_AutoArray[NUMAUTOLINES][8]={
 #define FL 2
 #define RL 3
 #define ALL -1 /* all drive channels */
-#define IDX  2 /* use FL Left Wheel as index */
+#define IDX  (FR) /* use FL Left Wheel as index */
 #define PI 3.141592654
 #define SW_L 21.75   //Distance between wheels from front to back
 #define SW_W 21.75   //Distance between wheels from side to side
@@ -205,8 +227,9 @@ class Robot : public frc::TimedRobot {
 			
 			switch (0){ //`fix
 				case 0:
+					AutoArray = VL_AutoArray;
 					// AutoArray = MOVE_TEST_AutoArray;
-					AutoArray=BALANCE_AutoArray;
+					// AutoArray=BALANCE_AutoArray;
 					// AutoArray=LEAVE_ZONE_AutoArray;		
 					break;
 				case 1:
@@ -245,7 +268,7 @@ class Robot : public frc::TimedRobot {
 		}
 		RobotInitialized=100;
 	    ReadGyro();
-		//TrackRobot();			//Track the Robot's FL wheel X,Y position around the field
+		TrackRobot();			//Track the Robot's FL wheel X,Y position around the field
 	    SwerveControl(); 
 		SwerveDrive();
 
@@ -289,14 +312,14 @@ class Robot : public frc::TimedRobot {
         RLSteer.Set(ControlMode::Current,0.0);
         RRSteer.Set(ControlMode::Current,0.0);
 
-        FLZero = FLSteer.GetSensorCollection().GetPulseWidthPosition();
-        FRZero = FRSteer.GetSensorCollection().GetPulseWidthPosition();
-        RLZero = RLSteer.GetSensorCollection().GetPulseWidthPosition();
-        RRZero = RRSteer.GetSensorCollection().GetPulseWidthPosition();
+        FLZero = fmod(FLSteer.GetSensorCollection().GetPulseWidthPosition(),4096);
+        FRZero = fmod(FRSteer.GetSensorCollection().GetPulseWidthPosition(),4096);
+        RLZero = fmod(RLSteer.GetSensorCollection().GetPulseWidthPosition(),4096);
+        RRZero = fmod(RRSteer.GetSensorCollection().GetPulseWidthPosition(),4096);
 
 		//Read encoder counts and then divide to get degrees of rotation
     	ActDir[FL]=fmod((FLSteer.GetSensorCollection().GetPulseWidthPosition()/11.38),360.0); //GetPulseWidthPosition()
-		ActDir[FR]=fmod((FRSteer.GetSensorCollection().GetPulseWidthPosition()/11.38),360.0);
+		ActDir[FR]=fmod(((FRSteer.GetSensorCollection().GetPulseWidthPosition()-FRZero)/11.38),360.0);
     	ActDir[RL]=fmod((RLSteer.GetSensorCollection().GetPulseWidthPosition()/11.38),360.0);
     	ActDir[RR]=fmod((RRSteer.GetSensorCollection().GetPulseWidthPosition()/11.38),360.0);
 
@@ -340,18 +363,18 @@ class Robot : public frc::TimedRobot {
 	#define MIN_SHOULDER 5000
 	#define MAX_WRIST 6000
 	#define MIN_WRIST 200 
+	
 
-	#define SHOULDER_OFFSET (-5000)
-	#define WRIST_OFFSET (0)
-
+	
 	long ArmPoses[8][4] = {
 	//	cone Sholder Position	cone Wrist Position, cube shoulder, cube wrist
 		{MIN_SHOULDER,MIN_WRIST,MIN_SHOULDER,MIN_WRIST}, //TRAVEL_POS		
 		{130400,5084,129792,5046},// HP_PICKUP
 		{124690,5090,124500,5046},// HP_PICK_DROP //` fix actual values
-		{29954,3235,56127,4214},// FLOOR_PICKUP (CONE) //26700 2938 
+		//{29954,3235,56127,4214},// FLOOR_PICKUP (CONE) //26700 2938 
+		{16954,3235,38127,4214},// FLOOR_PICKUP
 		{124620,4931,114150,4019},// MID_SCORE
-		{270669,2214,125180,3367},// TOP_SCORE		
+		{270669,2214,112180,3367},// TOP_SCORE		
 		{71762,4955,71762,4955},//CONE_VERTICAL
 		{54265,2129,54265,2129}//SHUTE_PICKUP
 	
@@ -489,7 +512,6 @@ class Robot : public frc::TimedRobot {
 	void RunWrist(){
 
 		if(SelectedPosition>=0) WristTarget =  ArmPoses[SelectedPosition][ObjectType+WRIST_POSE];
-		if(SelectedPosition>0) WristTarget = WristTarget + WRIST_OFFSET;
 		//Wrist limits //deemed unneccessary because all values are from array
 		// if(WristTarget>MAX_WRIST){
 		// 	WristTarget=MAX_WRIST;
@@ -523,7 +545,6 @@ class Robot : public frc::TimedRobot {
 
 	void RunShoulder(){
 		if(SelectedPosition>=0) ShoulderTarget = ArmPoses[SelectedPosition][ObjectType+SHOULDER_POSE];
-		if(SelectedPosition>0) ShoulderTarget = ShoulderTarget +  SHOULDER_OFFSET;
 		
 
 		//Shoulder Limits
@@ -548,31 +569,31 @@ class Robot : public frc::TimedRobot {
 	void RunIntake(){
 		if(!IsAutonomous()){
 			if(OpController.GetPOV()==0 || dir_stick.GetTrigger() || AutoIntake==INTAKE_IN){ //intake
-				Intake.Set(ControlMode::PercentOutput, -1.0);
+				Intake.Set(ControlMode::PercentOutput, 1.0);
 				InLast=1;
 			}
 			else if(OpController.GetPOV()==180 || dir_stick.GetRawButton(2)){//outake
-				Intake.Set(ControlMode::PercentOutput, .75);
+				Intake.Set(ControlMode::PercentOutput, -0.75);
 				InLast=0;
 			}
 			else
 			{
-				if(InLast==1) Intake.Set(ControlMode::PercentOutput, -0.2);
+				if(InLast==1) Intake.Set(ControlMode::PercentOutput, 0.2);
 				else Intake.Set(ControlMode::PercentOutput,0);
 				
 			}
 		}else{ //Autonomous
 			if(AutoIntake==INTAKE_IN){ //intake
-				Intake.Set(ControlMode::PercentOutput, -0.99);
+				Intake.Set(ControlMode::PercentOutput, 1.0);
 				InLast=1;
 			}
 			else if(AutoIntake == INTAKE_EJECT){//outake
-				Intake.Set(ControlMode::PercentOutput, .5);
+				Intake.Set(ControlMode::PercentOutput, -0.5);
 				InLast=0;
 			}
 			else if(AutoIntake==INTAKE_HOLD)
 			{
-				Intake.Set(ControlMode::PercentOutput, -0.2);	
+				Intake.Set(ControlMode::PercentOutput, 0.2);	
 			}else{
 				Intake.Set(ControlMode::PercentOutput,0.0);
 			}
@@ -611,15 +632,19 @@ class Robot : public frc::TimedRobot {
 			// sprintf(str, "gyro= %f",Gyro);
 			sprintf(str, "ObjT %d,Pos %d,Gyro %4.2f",ObjectType,SelectedPosition,RobotAngle);
 		    frc::SmartDashboard::PutString("DB/String 4", str);
-			sprintf(str, "StKR%f",OpController.GetRightY());
+			// sprintf(str, "StKR%f",OpController.GetRightY());
+			sprintf(str,"FRC%4.2f",FRDrive.GetSelectedSensorPosition());
 		    frc::SmartDashboard::PutString("DB/String 5", str);
-			sprintf(str, "StKL%f",OpController.GetLeftY());
+			// sprintf(str, "StKL%f",OpController.GetLeftY());
+			sprintf(str,"FRZ%4.2f",FRZero);
 		    frc::SmartDashboard::PutString("DB/String 6", str);
 			// sprintf(str,"Pitch:%4.2f",RobotPitch);
 			// sprintf(str,"%s",frc::SmartDashboard::GetData("Auto Selector"));
-			sprintf(str,"V:%4.2f",FLDrive.GetSelectedSensorVelocity());
+			// sprintf(str,"V:%4.2f",FLDrive.GetSelectedSensorVelocity());
+			sprintf(str,"Dir%4.2f,Dist%4.2f",tempPrint,tempPrint2);
 			frc::SmartDashboard::PutString("DB/String 8",str);
-			sprintf(str,"ShCur:%4.2f",Shoulder.GetOutputCurrent());
+			// sprintf(str,"ShCur:%4.2f",Shoulder.GetOutputCurrent());
+			sprintf(str,"PosX%4.2f,Y%4.2f",RobotX[IDX],RobotY[IDX]);
 			frc::SmartDashboard::PutString("DB/String 9",str);
 
 			// double Kp = frc::SmartDashboard::GetNumber("DB/Slider 0",1.0);
@@ -650,7 +675,8 @@ class Robot : public frc::TimedRobot {
 								frc::SmartDashboard::PutString("DB/String 2", str);
 								sprintf(str, "yFL%d,FR%d,RL%d,RR%d",(int)RobotY[FL],(int)RobotY[FR],(int)RobotY[RL],(int)RobotY[RR]);
 								frc::SmartDashboard::PutString("DB/String 3", str);
-								sprintf(str, "Pwr:%4.2f",MaxPower);
+								// sprintf(str, "Pwr:%4.2f",MaxPower);
+								sprintf(str,"ST%ld",ShoulderTarget);
 								frc::SmartDashboard::PutString("DB/String 4", str);
 								sprintf(str, "Ang T%d,A%3.0f",Orientation,fmod(RobotAngle,360.0));
 								frc::SmartDashboard::PutString("DB/String 5", str);
@@ -662,7 +688,8 @@ class Robot : public frc::TimedRobot {
 								sprintf(str,"SWRVY %4.2f,SWRVX%4.2f",SWRVY,SWRVX);
 								frc::SmartDashboard::PutString("DB/String 8", str);
 								// sprintf(str, "Ptch:%4.2f,RH:%d",RobotPitch,RampHit);
-								sprintf(str,"IN:%d,A%d",AutoIntake,IsAutonomous());
+								// sprintf(str,"IN:%d,A%d",AutoIntake,IsAutonomous());
+								sprintf(str,"DIR%4.2f",tempPrint);
 								frc::SmartDashboard::PutString("DB/String 9", str);
 
 
@@ -789,10 +816,10 @@ class Robot : public frc::TimedRobot {
     	float temp;
       
     	//Read encoder counts and then divide to get degrees of rotation
-    	ActDir[FL]=fmod((FLSteer.GetSensorCollection().GetPulseWidthPosition()/11.38),360.0); //GetPulseWidthPosition()
-		ActDir[FR]=fmod((FRSteer.GetSensorCollection().GetPulseWidthPosition()/11.38),360.0);
-    	ActDir[RL]=fmod((RLSteer.GetSensorCollection().GetPulseWidthPosition()/11.38),360.0);
-    	ActDir[RR]=fmod((RRSteer.GetSensorCollection().GetPulseWidthPosition()/11.38),360.0);
+    	ActDir[FL]=fmod(((FLSteer.GetSensorCollection().GetPulseWidthPosition()-FLZero)/11.38),360.0); //GetPulseWidthPosition()
+		ActDir[FR]=fmod(((FRSteer.GetSensorCollection().GetPulseWidthPosition()-FRZero)/11.38),360.0);
+    	ActDir[RL]=fmod(((RLSteer.GetSensorCollection().GetPulseWidthPosition()-RLZero)/11.38),360.0);
+    	ActDir[RR]=fmod(((RRSteer.GetSensorCollection().GetPulseWidthPosition()-RRZero)/11.38),360.0);
 
 		//If rotational power is low, just don't rotate
         if(IsAutonomous()){
@@ -881,6 +908,7 @@ class Robot : public frc::TimedRobot {
 	//Track robot FL wheel X,Y position in inches Y is long side of field X is width
     
 	double tempPrint = 0;
+	double tempPrint2 = 0;
 	//Track robot FL wheel X,Y position in inches Y is long side of field X is width
     void TrackRobot(void){
 		int i;
@@ -892,8 +920,11 @@ class Robot : public frc::TimedRobot {
 			OldPosition[i]=NewPosition[i];
 			Dir=ActDir[i]+RobotAngle;
 			Dir=fmod(Dir,360.0);
-			tempPrint = Dir;
-			RobotX[i]-=Dist*sin((Dir*PI)/180.0);
+			if(i==IDX){
+				tempPrint = Dir;
+				tempPrint2 = NewPosition[IDX];
+			}
+			RobotX[i]-=Dist*sin((Dir*PI)/180.0); //` the result of sin((-100 * PI) / 180) appoximatly = 0.03. Potentially adding a small number to RobotX each time.	
 			RobotY[i]-=Dist*cos((Dir*PI)/180.0);
 		}
 	}	// End TrackRobot
@@ -916,7 +947,7 @@ class Robot : public frc::TimedRobot {
 			default:
 				result=0.0;
 		}
-		return(result/1596);
+		return(result/780);
 	}
 
 
@@ -946,8 +977,8 @@ class Robot : public frc::TimedRobot {
 		//Get msec since we started and divide by msec to full power for power limit from acceleration
 		MaxFromAcel=(int)(AutoTime.Get()*100000)/AccSec;
 
-		MaxFromAcel=100;
-		MaxFromDcel=100;
+		// MaxFromAcel=100;
+		// MaxFromDcel=100;
 
         if(MaxFromDcel<MaxFromAcel){
 			MaxPower=(MaxFromDcel*Speed)/100;
@@ -967,14 +998,18 @@ class Robot : public frc::TimedRobot {
 
 		if(AutoLine>NUMAUTOLINES) Command=STOP; //in case no one put in a stop command
 
-		UpdateScreenAuto(Command,AutoLine,AutoX,AutoY,MaxPower,Orientation);
+		UpdateScreenAuto(Command,AutoLine,X,Y,MaxPower,Orientation);
+		// tempPrint = RemainingInches;
+
 
 		switch(Command){ //command mode
 		    case START: 
 			            RobotX[IDX]=(double)AutoX;
 						RobotY[IDX]=(double)AutoY;
 						ResetGyro();
+						
 					
+
 						if(AutoTime.Get().value() > 2.5){
 							AutoLine++;
 						    FirstPass=1;
@@ -1100,6 +1135,7 @@ class Robot : public frc::TimedRobot {
 						AutoDriveX=0.0;
 						AutoDriveY=0.0;
 						AutoDriveZ=0.01;
+						IntakeState=INTAKE_HOLD;
 						TeleTime.Stop();
 						FirstPass=0;
 						//Intake.Set(ControlMode::PercentOutput, 0);
@@ -1353,10 +1389,11 @@ class Robot : public frc::TimedRobot {
 
 		
 		ResetGyro();
-
+		#ifdef CAMERA
 		frc::CameraServer::StartAutomaticCapture();
 		//std::thread visionThread(VisionThread);
 		//visionThread.detach();
+		#endif
   }
 
   #ifdef CAMERA 
