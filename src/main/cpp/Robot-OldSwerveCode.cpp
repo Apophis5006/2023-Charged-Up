@@ -117,16 +117,16 @@ int VL_AutoArray[NUMAUTOLINES][8]={
 			{WAIT_AUTO,  500,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_EJECT},
 			{MOVE,	 	 250,		0,		30,		0,		 150,	   0,  INTAKE_IN},
 			{ARM_AUTO,   3000,		0,		0,FLOOR_PICKUP,	 CUBE,		   0,  INTAKE_IN},
-			{MOVE,	 	 10,	    5,		15,		-16,		 195,	   0,  INTAKE_IN},
+			{MOVE,	 	 10,	    5,		15,		-16,		 210,	   0,  INTAKE_IN},
 			{ARM_AUTO,   3000,		0,		0,TRAVEL_POS,	 CUBE,		   0,  INTAKE_IN},
-			{MOVE,	 	 250,		5,		30,		0,		 0,		  0,  INTAKE_IN},
+			{MOVE,	 	 250,		5,		30,		0,		 0,		  180,  INTAKE_IN},
 			{STOP,       0,         0,      0,      0,       0,        0,            0},	//STOP
 }; 
 
 int MOVE_TEST_AutoArray[NUMAUTOLINES][8]={
 	        //CMD,   Acc mSec,Dec Inches, MaxPwr,TargetX, TargetY, Orientation Deg,IntakeState
 			{START,      0,         0,      0,      0,       0,        0,            0}, //Start at midfield location
-			{MOVE,	 	 500,		5,		20,		0,	    100,		   0,  INTAKE_IDLE},
+			{MOVE,	   500,		    5,	   10,		0,	     50,	   180,  INTAKE_IDLE},
 		//    {BALANCE, 	 500,		5,	    30,		0,	 50,		   0,  INTAKE_IDLE},
 			// {MOVE,	 	 250,		5,		20,		-30,		40,		   0,  INTAKE_IDLE},
 			// {MOVE,	 	 250,		5,		20,		-30,		0,		   0,  INTAKE_IDLE},
@@ -368,7 +368,7 @@ class Robot : public frc::TimedRobot {
 	
 	long ArmPoses[8][4] = {
 	//	cone Sholder Position	cone Wrist Position, cube shoulder, cube wrist
-		{MIN_SHOULDER,MIN_WRIST,MIN_SHOULDER,MIN_WRIST}, //TRAVEL_POS		
+		{20000,MIN_WRIST,20000,MIN_WRIST}, //TRAVEL_POS		
 		{130400,5084,129792,5046},// HP_PICKUP
 		{124690,5090,124500,5046},// HP_PICK_DROP //` fix actual values
 		//{29954,3235,56127,4214},// FLOOR_PICKUP (CONE) //26700 2938 
@@ -555,6 +555,15 @@ class Robot : public frc::TimedRobot {
 		// 	ShoulderTarget=MIN_SHOULDER;
 		// }
 
+		//Position Motion Magic Configs
+		// if(SelectedPosition==TRAVEL_POS){
+		// 	Shoulder.ConfigMotionCruiseVelocity(100000);
+		// 	Shoulder.ConfigMotionAcceleration(10000);			
+		// }else{
+		// 	Shoulder.ConfigMotionCruiseVelocity(500000);
+		// 	Shoulder.ConfigMotionAcceleration(40000);
+		// }
+
 		if(HomeShoulder==1){
 			Shoulder.Set(ControlMode::PercentOutput,-0.2);
 			if(Shoulder.GetOutputCurrent()>=9.0){
@@ -568,7 +577,7 @@ class Robot : public frc::TimedRobot {
 	int InLast = 0;
 	void RunIntake(){
 		if(!IsAutonomous()){
-			if(OpController.GetPOV()==0 || dir_stick.GetTrigger() || AutoIntake==INTAKE_IN){ //intake
+			if(OpController.GetPOV()==0 || dir_stick.GetTrigger()){ //intake
 				Intake.Set(ControlMode::PercentOutput, 1.0);
 				InLast=1;
 			}
@@ -701,7 +710,7 @@ class Robot : public frc::TimedRobot {
 	void SwerveControl(void){
 		//AutoPilot?
 	    if(IsAutonomousEnabled()){
-			FieldCentric=0; //; //Auto opertes in field centric mode
+			FieldCentric=1; //; //Auto opertes in field centric mode //0
 		    SWRVY=AutoDriveY;
 			SWRVX=AutoDriveX; 
 		    SWRVZ=AutoDriveZ;
@@ -991,10 +1000,15 @@ class Robot : public frc::TimedRobot {
 		X=((double)AutoX-RobotX[IDX]);
 		Y=((double)AutoY-RobotY[IDX]);
 		//Calculate the delta in the robot orientation target
-		DeltaA=(RobotAngle-Orientation);
+		if(Orientation>90 || Orientation<-90){
+			if(RobotAngle<-90){
+				DeltaA=(fmod(RobotAngle+360.0,360.0)-Orientation);
+			}else DeltaA=(RobotAngle-Orientation);
+		}else DeltaA=(RobotAngle-Orientation);
+		
 		Z=(DeltaA*-1.0)/360.0; //90
-		if(Z>1.0)Z=1.0;
-		if(Z<-1.0) Z=-1.0;
+		if(Z>0.5)Z=0.5;
+		if(Z<-0.5) Z=-0.5;
 
 		if(AutoLine>NUMAUTOLINES) Command=STOP; //in case no one put in a stop command
 
@@ -1029,7 +1043,7 @@ class Robot : public frc::TimedRobot {
 							if(RobotPitch>15.0)RobotPitch=15.0;
 							if(RobotPitch<-15.0)RobotPitch=-15.0;
 							Y=pow((RobotPitch/15.0),3);
-						    AutoDriveY=(double)((Y)*35.0)/100.0; //Pwr was 50
+						    AutoDriveY=(double)((Y)*10.0)/100.0; //Pwr was 50
 							
 						} else{
 							AutoDriveY=(double)((Y/(fctr))*MaxPower)/100.0;
@@ -1050,7 +1064,7 @@ class Robot : public frc::TimedRobot {
 						}
 						
 
-						if((((UseYTravel&&(Y*Travel<0))||((!UseYTravel)&&(X*Travel<0)))&&!RampHit)||AutoTime.Get().value()>3.0){
+						if((((UseYTravel&&(Y*Travel<0))||((!UseYTravel)&&(X*Travel<0)))&&!RampHit)){
                            RemainingInches=0;
 						   AutoLine++;
 						   FirstPass=1;
@@ -1348,8 +1362,8 @@ class Robot : public frc::TimedRobot {
 		Shoulder.SetStatusFramePeriod(StatusFrameEnhanced::Status_10_MotionMagic, 10, TIMEOUT);
 
 		// Set acceleration and vcruise velocity - see documentation 
-		Shoulder.ConfigMotionCruiseVelocity(500000, TIMEOUT);
-		Shoulder.ConfigMotionAcceleration(40000, TIMEOUT);
+		Shoulder.ConfigMotionCruiseVelocity(250000, TIMEOUT); //50000
+		Shoulder.ConfigMotionAcceleration(20000, TIMEOUT); //40000
 		Shoulder.ConfigMotionSCurveStrength(0,TIMEOUT);
 
 		Wrist.ConfigSelectedFeedbackSensor(FeedbackDevice::QuadEncoder, 0, NOTIMEOUT);	 
