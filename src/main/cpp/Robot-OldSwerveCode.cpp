@@ -50,7 +50,7 @@ int (*AutoArray)[8];
 int RobotInitialized=0;
 int AutoArraySet=0;
 //Arm Positions
-#define ARM_DEFAULT 0
+#define TRAVEL_POS 0
 #define HP_PICKUP 1
 #define HP_PICK_DROP 2
 #define FLOOR_PICKUP 3
@@ -58,8 +58,10 @@ int AutoArraySet=0;
 #define TOP_SCORE 5
 #define CONE_VERTICAL 6
 #define SHUTE_PICKUP 7
-#define TRAVEL_POS 0
-int ArmPosition = ARM_DEFAULT;
+//Auto
+#define AUTO_FLOOR 8 
+#define AUTO_TOP 9
+int ArmPosition = TRAVEL_POS;
 int ArmManual = 0;
 #define CONE 0
 #define CUBE 2
@@ -109,18 +111,20 @@ int VL_AutoArray[NUMAUTOLINES][8]={
 			{WAIT_AUTO,	 1000,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_IN},
 			{ARM_AUTO,   2000,		0,		0,HP_PICKUP,	 0,		   0,  INTAKE_IN},
 			{WAIT_AUTO,	 1000,		0,		0,HP_PICKUP,	 0,		   0,  INTAKE_IN},
-			{ARM_AUTO,   2000,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_IN},
-			{WAIT_AUTO,	 1000,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_IN},
-			{ARM_AUTO,   2000,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_EJECT},
-			{WAIT_AUTO,  500,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_EJECT},
+			{ARM_AUTO,   2000,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_IN},
+			{WAIT_AUTO,	 1000,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_IN},
+			{ARM_AUTO,   2000,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_EJECT},
+			{WAIT_AUTO,  500,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_EJECT},
 			{ARM_AUTO,   2000,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_EJECT},
 			{WAIT_AUTO,  500,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_EJECT},
 			{MOVE,	 	 250,		0,		30,		0,		 150,	   0,  INTAKE_IN},
-			{ARM_AUTO,   3000,		0,		0,FLOOR_PICKUP,	 CUBE,		   0,  INTAKE_IN},
-			{MOVE,	 	 10,	    5,		15,		-16,		 210,	   0,  INTAKE_IN},
+			{ARM_AUTO,   3000,		0,		0,AUTO_FLOOR,	 CUBE,		   0,  INTAKE_IN},
+			{MOVE,	 	 10,	    5,		15,		-16,	 210,	   0,  INTAKE_IN},
 			{ARM_AUTO,   3000,		0,		0,TRAVEL_POS,	 CUBE,		   0,  INTAKE_IN},
-			{MOVE,	 	 250,		5,		30,		0,		 0,		  180,  INTAKE_IN},
-			{STOP,       0,         0,      0,      0,       0,        0,            0},	//STOP
+			{MOVE,	 	 250,		5,		30,	  -22,		 140,		  180,  INTAKE_IN},
+			{ARM_AUTO,   3000,		0,		0,AUTO_FLOOR,	 CUBE,		   0,  INTAKE_IN},
+			{MOVE,	 	 250,		5,		30,	  -22,		 -22,		  180,  INTAKE_IN},
+			{STOP,       0,         0,      0,      0,       0,        0,       INTAKE_EJECT},	//STOP
 }; 
 
 int MOVE_TEST_AutoArray[NUMAUTOLINES][8]={
@@ -366,18 +370,28 @@ class Robot : public frc::TimedRobot {
 	
 
 	
-	long ArmPoses[8][4] = {
+	long ArmPoses[12][4] = {
 	//	cone Sholder Position	cone Wrist Position, cube shoulder, cube wrist
 		{20000,MIN_WRIST,20000,MIN_WRIST}, //TRAVEL_POS		
+		// {130400,5084,129792,5046},// HP_PICKUP
+		// {124690,5090,124500,5046},// HP_PICK_DROP //` fix actual values
+		// //{29954,3235,56127,4214},// FLOOR_PICKUP (CONE) //26700 2938 
+		// {16954,3235,38127,4214},// FLOOR_PICKUP
+		// {124620,4931,114150,4019},// MID_SCORE
+		// // {270669,2214,112180,3367},// TOP_SCORE
+		// {250669,2214,112180,3367},// TOPSCORE		
+		// {71762,4955,71762,4955},//CONE_VERTICAL
+		// {54265,2129,54265,2129},//SHUTE_PICKUP
 		{130400,5084,129792,5046},// HP_PICKUP
-		{124690,5090,124500,5046},// HP_PICK_DROP //` fix actual values
-		//{29954,3235,56127,4214},// FLOOR_PICKUP (CONE) //26700 2938 
-		{16954,3235,38127,4214},// FLOOR_PICKUP
+		{127531, 5084,124500,5046},// HP_PICK_DROP 
+		{30700, 3586,50600, 4400},// FLOOR_PICKUP
 		{124620,4931,114150,4019},// MID_SCORE
-		{270669,2214,112180,3367},// TOP_SCORE		
-		{71762,4955,71762,4955},//CONE_VERTICAL
-		{54265,2129,54265,2129}//SHUTE_PICKUP
-	
+		{271858, 2595,112180,3367},// TOP_SCORE		
+		{68500, 4955,68500, 4955},//CONE_VERTICAL
+		{54265,2129,54265,2129},//SHUTE_PICKUP
+		//Auto
+		{16954,3235,38127,4214}, //FLOOR_PICKUP
+		{250669,2214,112180,3367}, //TOP_SCORE
 	
 	};
 
@@ -522,8 +536,8 @@ class Robot : public frc::TimedRobot {
 
 
 		if(ObjectType==CONE &&  //prevents hight limit violation //`fix rist not moving at top_score
-		((SelectedPosition==TOP_SCORE && Shoulder.GetSensorCollection().GetIntegratedSensorPosition() < 225000) ||
-		 (SelectedPosition!=TOP_SCORE && SelectedPosition!=-1 && Shoulder.GetSensorCollection().GetIntegratedSensorPosition() > ArmPoses[HP_PICKUP][SHOULDER_POSE])))
+		(((SelectedPosition==TOP_SCORE || SelectedPosition==AUTO_TOP) && Shoulder.GetSensorCollection().GetIntegratedSensorPosition() < 225000) ||
+		 (SelectedPosition!=TOP_SCORE && SelectedPosition!=AUTO_TOP && SelectedPosition!=-1 && Shoulder.GetSensorCollection().GetIntegratedSensorPosition() > ArmPoses[HP_PICKUP][SHOULDER_POSE])))
 		{
 			// WristTarget = ArmPoses[TRAVEL_POS][WRIST_POSE];
 			if(Wrist.GetSensorCollection().GetQuadraturePosition() > 2500) WristTarget = MAX_WRIST;
@@ -587,7 +601,7 @@ class Robot : public frc::TimedRobot {
 			}
 			else
 			{
-				if(InLast==1) Intake.Set(ControlMode::PercentOutput, 0.2);
+				if(InLast==1) Intake.Set(ControlMode::PercentOutput, 0.1); //0.2
 				else Intake.Set(ControlMode::PercentOutput,0);
 				
 			}
@@ -602,7 +616,7 @@ class Robot : public frc::TimedRobot {
 			}
 			else if(AutoIntake==INTAKE_HOLD)
 			{
-				Intake.Set(ControlMode::PercentOutput, 0.2);	
+				Intake.Set(ControlMode::PercentOutput, 0.1); //0.2	
 			}else{
 				Intake.Set(ControlMode::PercentOutput,0.0);
 			}
@@ -698,7 +712,8 @@ class Robot : public frc::TimedRobot {
 								frc::SmartDashboard::PutString("DB/String 8", str);
 								// sprintf(str, "Ptch:%4.2f,RH:%d",RobotPitch,RampHit);
 								// sprintf(str,"IN:%d,A%d",AutoIntake,IsAutonomous());
-								sprintf(str,"DIR%4.2f",tempPrint);
+								// sprintf(str,"DIR%4.2f",tempPrint);
+								sprintf(str,"S%ld,W%ld",ArmPoses[SelectedPosition][ObjectType+SHOULDER_POSE],ArmPoses[SelectedPosition][ObjectType+WRIST_POSE]);
 								frc::SmartDashboard::PutString("DB/String 9", str);
 
 
@@ -1149,7 +1164,6 @@ class Robot : public frc::TimedRobot {
 						AutoDriveX=0.0;
 						AutoDriveY=0.0;
 						AutoDriveZ=0.01;
-						IntakeState=INTAKE_HOLD;
 						TeleTime.Stop();
 						FirstPass=0;
 						//Intake.Set(ControlMode::PercentOutput, 0);
