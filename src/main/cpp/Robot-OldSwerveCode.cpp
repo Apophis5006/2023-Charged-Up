@@ -14,6 +14,7 @@
 #include <frc2/command/PIDCommand.h>
 
 #include "ctre/Phoenix.h"
+#include "ctre/phoenix/motorcontrol/VictorSPXSimCollection.h"
 #include <frc/smartdashboard/SendableChooser.h>
 #include <frc/smartdashboard/SmartDashboard.h>
 #include <frc/DigitalOutput.h>
@@ -1207,7 +1208,7 @@ class Robot : public frc::TimedRobot {
   TalonSRX RRSteer = {RRS};
 
   TalonSRX Wrist = {WRIST};
-  TalonSRX Intake = {INTAKE};
+  VictorSPX Intake = {INTAKE};
   TalonFX  Shoulder = {SHOULDER};
 
 //   TalonSRX Intake = {INTAKE};
@@ -1415,8 +1416,9 @@ class Robot : public frc::TimedRobot {
 		 Intake.Config_kP(0, 0.5, TIMEOUT);
 		 Intake.Config_kI(0, 0.0, TIMEOUT);
 		 Intake.Config_kD(0, 0.0, TIMEOUT);
-		 Intake.ConfigContinuousCurrentLimit(20,TIMEOUT);
-		 Intake.EnableCurrentLimit(true);
+		//  Intake.ConfigContinuousCurrentLimit(20,TIMEOUT);
+		//  Intake.EnableCurrentLimit(true);
+		//Note: Lack of Current limit is somewhat dangerous, but VictorSPX controllers don't seem to have configs for it 
 		 Intake.Set(ControlMode::PercentOutput, 0.0);
 
 		
