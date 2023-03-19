@@ -75,6 +75,8 @@ int AutoIntake = INTAKE_IDLE;
 
 // autonomous barrel race  RED 1
 #define BRPW 70
+
+const std::string BALANCE_SELECTION_STRING = "Balance";
 int BALANCE_AutoArray[NUMAUTOLINES][8]={
 	        //CMD,   Acc mSec,Dec Inches, MaxPwr,TargetX, TargetY, Orientation Deg,IntakeState
 			{START,      0,         0,      0,      0,       0,        0,            0}, //Start at midfield location
@@ -94,16 +96,8 @@ int BALANCE_AutoArray[NUMAUTOLINES][8]={
 			{STOP,       0,         0,      0,      0,       0,        0,            0},	//STOP
 };
 
-int LEAVE_ZONE_AutoArray[NUMAUTOLINES][8]={
-	        //CMD,   Acc mSec,Dec Inches, MaxPwr,TargetX, TargetY, Orientation Deg,IntakeState
-			{START,      0,         0,      0,      0,       0,        0,            0}, //Start at midfield location
-			{ARM_AUTO,   2000,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_HOLD},
-			{ARM_AUTO,   1500,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_EJECT},
-			{ARM_AUTO,   500,			0,		0,TRAVEL_POS, CUBE,		   0,  INTAKE_IDLE},
-			{MOVE,	 	 250,		5,		30,		0,		 -10,		   0,  INTAKE_IDLE},
-			{STOP,       0,         0,      0,      0,       0,        0,            0},	//STOP
-};
 
+const std::string VL_SELECTION_STRING = "Veer Left";
 int VL_AutoArray[NUMAUTOLINES][8]={
 	        //CMD,   Acc mSec,Dec Inches, MaxPwr,TargetX, TargetY, Orientation Deg,IntakeState
 			{START,      0,         0,      0,      0,       0,        0,  INTAKE_IN}, //Start at midfield location
@@ -127,6 +121,7 @@ int VL_AutoArray[NUMAUTOLINES][8]={
 			{STOP,       0,         0,      0,      0,       0,        0,       INTAKE_EJECT},	//STOP
 }; 
 
+const std::string MOVE_TEST_SELECTION_STRING = "Move Test";
 int MOVE_TEST_AutoArray[NUMAUTOLINES][8]={
 	        //CMD,   Acc mSec,Dec Inches, MaxPwr,TargetX, TargetY, Orientation Deg,IntakeState
 			{START,      0,         0,      0,      0,       0,        0,            0}, //Start at midfield location
@@ -136,6 +131,12 @@ int MOVE_TEST_AutoArray[NUMAUTOLINES][8]={
 			// {MOVE,	 	 250,		5,		20,		-30,		0,		   0,  INTAKE_IDLE},
 			// {MOVE,	 	 250,		5,		20,		0,		 0,		   0,  INTAKE_IDLE},
 			{STOP,       0,         0,      0,      0,       0,        0,            0},	//STOP
+};
+
+const std::string NO_MOVE_SELECTIONSTRING = "No Move";
+int NO_MOVE_AutoArray[NUMAUTOLINES][8]={
+	{START,      0,         0,      0,      0,       0,        0,            0},
+	{STOP,       0,         0,      0,      0,       0,        0,            0},	//STOP
 };
 
 //Motor controller defines
@@ -229,21 +230,12 @@ class Robot : public frc::TimedRobot {
 				OldPosition[i]=GetLocation(i);
 			}
 			
-			switch (0){ //`fix
-				case 0:
-					AutoArray = VL_AutoArray;
-					// AutoArray = MOVE_TEST_AutoArray;
-					// AutoArray=BALANCE_AutoArray;
-					// AutoArray=LEAVE_ZONE_AutoArray;		
-					break;
-				case 1:
-
-					break;
-				default:
-					AutoArray=BALANCE_AutoArray;
-					// AutoArray=LEAVE_ZONE_AutoArray;
-					break;
-			}
+			std::string selectedAuto = AutoChooser.GetSelected();
+			if(selectedAuto == BALANCE_SELECTION_STRING) AutoArray=BALANCE_AutoArray;	
+			else if(selectedAuto == VL_SELECTION_STRING) AutoArray=VL_AutoArray;
+			else if(selectedAuto == MOVE_TEST_SELECTION_STRING) AutoArray=MOVE_TEST_AutoArray;
+			else AutoArray=NO_MOVE_AutoArray;
+			
 	   }
 	   AutoTime.Start();
 	
@@ -1214,6 +1206,9 @@ class Robot : public frc::TimedRobot {
   frc::Timer TeleTime;
   frc::Timer SwitchTimer;
 
+  frc::SendableChooser<std::string> AutoChooser;
+  std::string m_autoSelected;
+
 
   void RobotInit() {
 
@@ -1416,6 +1411,13 @@ class Robot : public frc::TimedRobot {
 
 		
 		ResetGyro();
+
+		AutoChooser.SetDefaultOption(NO_MOVE_SELECTIONSTRING,NO_MOVE_SELECTIONSTRING);
+		AutoChooser.AddOption(BALANCE_SELECTION_STRING,BALANCE_SELECTION_STRING);
+  		AutoChooser.AddOption(VL_SELECTION_STRING,VL_SELECTION_STRING);
+		AutoChooser.AddOption(MOVE_TEST_SELECTION_STRING,MOVE_TEST_SELECTION_STRING);
+  		frc::SmartDashboard::PutData("Auto Selector", &AutoChooser);
+
 		#ifdef CAMERA
 		frc::CameraServer::StartAutomaticCapture();
 		//std::thread visionThread(VisionThread);
