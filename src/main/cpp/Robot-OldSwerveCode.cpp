@@ -373,26 +373,17 @@ class Robot : public frc::TimedRobot {
 	long ArmPoses[12][4] = {
 	//	cone Sholder Position	cone Wrist Position, cube shoulder, cube wrist
 		{20000,MIN_WRIST,20000,MIN_WRIST}, //TRAVEL_POS		
-		// {130400,5084,129792,5046},// HP_PICKUP
-		// {124690,5090,124500,5046},// HP_PICK_DROP //` fix actual values
-		// //{29954,3235,56127,4214},// FLOOR_PICKUP (CONE) //26700 2938 
-		// {16954,3235,38127,4214},// FLOOR_PICKUP
-		// {124620,4931,114150,4019},// MID_SCORE
-		// // {270669,2214,112180,3367},// TOP_SCORE
-		// {250669,2214,112180,3367},// TOPSCORE		
-		// {71762,4955,71762,4955},//CONE_VERTICAL
-		// {54265,2129,54265,2129},//SHUTE_PICKUP
-		{130400,5084,129792,5046},// HP_PICKUP
+		// {130400,5084,129792,5046},// HP_PICKUP Sideways
+		{152783, 5766, 129792,5046},// HP_PICKUP
 		{127531, 5084,124500,5046},// HP_PICK_DROP 
-		{30700, 3586,50600, 4400},// FLOOR_PICKUP
+		{30700, 3586,50600, 4120},// FLOOR_PICKUP
 		{124620,4931,114150,4019},// MID_SCORE
-		{271858, 2595,112180,3367},// TOP_SCORE		
+		{271858, 2223,112180,3367},// TOP_SCORE		
 		{68500, 4955,68500, 4955},//CONE_VERTICAL
 		{54265,2129,54265,2129},//SHUTE_PICKUP
 		//Auto
 		{16954,3235,38127,4214}, //FLOOR_PICKUP
 		{250669,2214,112180,3367}, //TOP_SCORE
-	
 	};
 
 	long ShoulderTarget = 0;
@@ -590,38 +581,46 @@ class Robot : public frc::TimedRobot {
 
 	int InLast = 0;
 	void RunIntake(){
-		if(!IsAutonomous()){
-			if(OpController.GetPOV()==0 || dir_stick.GetTrigger()){ //intake
-				Intake.Set(ControlMode::PercentOutput, 1.0);
+		double intakePercent = 0.0;
+		// if(!IsAutonomous()){
+			if(OpController.GetPOV()==0 || dir_stick.GetTrigger() || (IsAutonomous() && (AutoIntake == INTAKE_IN))){ //intake
+				intakePercent=1.0;
 				InLast=1;
 			}
-			else if(OpController.GetPOV()==180 || dir_stick.GetRawButton(2)){//outake
-				Intake.Set(ControlMode::PercentOutput, -0.75);
+			else if(OpController.GetPOV()==180 || dir_stick.GetRawButton(2) || (IsAutonomous() && (AutoIntake == INTAKE_EJECT))){//outake
+				intakePercent = -0.75;
 				InLast=0;
 			}
 			else
 			{
-				if(InLast==1) Intake.Set(ControlMode::PercentOutput, 0.1); //0.2
-				else Intake.Set(ControlMode::PercentOutput,0);
+				if(SelectedPosition == TRAVEL_POS 
+				&& ObjectType == CONE
+				&& (fabs(WristTarget-Wrist.GetSensorCollection().GetPulseWidthPosition())>100) //Wrist position is close enough
+				&& (fabs(ShoulderTarget-Shoulder.GetSensorCollection().GetIntegratedSensorPosition())>2000) //shoulder position
+				)intakePercent = 0.75;
+
+				else if(InLast==1 || (IsAutonomous() && AutoIntake==INTAKE_HOLD)) intakePercent = 0.1; //0.2
+				else intakePercent=0.0;
 				
 			}
-		}else{ //Autonomous
-			if(AutoIntake==INTAKE_IN){ //intake
-				Intake.Set(ControlMode::PercentOutput, 1.0);
-				InLast=1;
-			}
-			else if(AutoIntake == INTAKE_EJECT){//outake
-				Intake.Set(ControlMode::PercentOutput, -0.5);
-				InLast=0;
-			}
-			else if(AutoIntake==INTAKE_HOLD)
-			{
-				Intake.Set(ControlMode::PercentOutput, 0.1); //0.2	
-			}else{
-				Intake.Set(ControlMode::PercentOutput,0.0);
-			}
-		}
+		// // }else{ //Autonomous
+		// 	if(AutoIntake==INTAKE_IN){ //intake
+		// 		Intake.Set(ControlMode::PercentOutput, 1.0);
+		// 		InLast=1;
+		// 	}
+		// 	else if(AutoIntake == INTAKE_EJECT){//outake
+		// 		Intake.Set(ControlMode::PercentOutput, -0.5);
+		// 		InLast=0;
+		// 	}
+		// 	else if(AutoIntake==INTAKE_HOLD)
+		// 	{
+		// 		Intake.Set(ControlMode::PercentOutput, 0.1); //0.2	
+		// 	}else{
+		// 		Intake.Set(ControlMode::PercentOutput,0.0);
+		// 	}
+		// }
 
+		Intake.Set(ControlMode::PercentOutput, intakePercent);
 	}
 
 	void UpdateDriverScreen(){
