@@ -120,8 +120,8 @@ int VL_AutoArray[NUMAUTOLINES][8]={
 			{MOVE,	 	 250,		0,		30,		0,		 150,	   0,  INTAKE_IN},
 			{ARM_AUTO,   3000,		0,		0,AUTO_FLOOR,	 CUBE,		   0,  INTAKE_IN},
 			{MOVE,	 	 10,	    5,		15,		-16,	 210,	   0,  INTAKE_IN},
-			{ARM_AUTO,   3000,		0,		0,TRAVEL_POS,	 CUBE,		   0,  INTAKE_IN},
-			{MOVE,	 	 250,		5,		30,	  -22,		 140,		  180,  INTAKE_IN},
+			{ARM_AUTO,   3000,		0,		0,TRAVEL_POS,	 CUBE,		   0,  INTAKE_HOLD},
+			{MOVE,	 	 250,		5,		30,	  -22,		 140,		  180,  INTAKE_HOLD},
 			{ARM_AUTO,   3000,		0,		0,AUTO_FLOOR,	 CUBE,		   0,  INTAKE_IN},
 			{MOVE,	 	 250,		5,		30,	  -22,		 -22,		  180,  INTAKE_IN},
 			{STOP,       0,         0,      0,      0,       0,        0,       INTAKE_EJECT},	//STOP
@@ -382,7 +382,8 @@ class Robot : public frc::TimedRobot {
 		{68500, 4955,68500, 4955},//CONE_VERTICAL
 		{54265,2129,54265,2129},//SHUTE_PICKUP
 		//Auto
-		{16954,3235,38127,4214}, //FLOOR_PICKUP
+		// {16954,3235,38127,4214}, //FLOOR_PICKUP
+		{30700,3586,48801,4120}, //FLOOR_PICKUP
 		{250669,2214,112180,3367}, //TOP_SCORE
 	};
 
@@ -456,14 +457,10 @@ class Robot : public frc::TimedRobot {
 		//cone cube
 		if(OpController.GetRawAxis(2)>0.5){
 			ObjectType = CUBE;
-			LedIn1.Set(0);
-			LedIn2.Set(1);
 			OpController.SetRumble(frc::GenericHID::RumbleType::kBothRumble,0.25);
 		}
 		else if(OpController.GetRawAxis(3)>0.5) {
 			ObjectType = CONE;
-			LedIn1.Set(1);
-			LedIn2.Set(0);
 			OpController.SetRumble(frc::GenericHID::RumbleType::kBothRumble,0.0);
 		}else{
 			OpController.SetRumble(frc::GenericHID::RumbleType::kBothRumble,0.0);
@@ -568,6 +565,14 @@ class Robot : public frc::TimedRobot {
 		// 	Shoulder.ConfigMotionCruiseVelocity(500000);
 		// 	Shoulder.ConfigMotionAcceleration(40000);
 		// }
+
+		if(ObjectType==CUBE){
+			LedIn1.Set(0);
+			LedIn2.Set(1);
+		}else{
+			LedIn1.Set(1);
+			LedIn2.Set(0);
+		}
 
 		if(HomeShoulder==1){
 			Shoulder.Set(ControlMode::PercentOutput,-0.2);
@@ -1375,8 +1380,8 @@ class Robot : public frc::TimedRobot {
 		Shoulder.SetStatusFramePeriod(StatusFrameEnhanced::Status_10_MotionMagic, 10, TIMEOUT);
 
 		// Set acceleration and vcruise velocity - see documentation 
-		Shoulder.ConfigMotionCruiseVelocity(250000, TIMEOUT); //50000
-		Shoulder.ConfigMotionAcceleration(20000, TIMEOUT); //40000
+		Shoulder.ConfigMotionCruiseVelocity(500000, TIMEOUT);
+		Shoulder.ConfigMotionAcceleration(40000, TIMEOUT);
 		Shoulder.ConfigMotionSCurveStrength(0,TIMEOUT);
 
 		Wrist.ConfigSelectedFeedbackSensor(FeedbackDevice::QuadEncoder, 0, NOTIMEOUT);	 
