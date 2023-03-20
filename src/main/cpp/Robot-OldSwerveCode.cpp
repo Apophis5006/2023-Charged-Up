@@ -61,6 +61,8 @@ int AutoArraySet=0;
 //Auto
 #define AUTO_FLOOR 8 
 #define AUTO_TOP 9
+#define Auto_LOW_SCORE 10
+
 int ArmPosition = TRAVEL_POS;
 int ArmManual = 0;
 #define CONE 0
@@ -107,23 +109,23 @@ int LEAVE_ZONE_AutoArray[NUMAUTOLINES][8]={
 int VL_AutoArray[NUMAUTOLINES][8]={
 	        //CMD,   Acc mSec,Dec Inches, MaxPwr,TargetX, TargetY, Orientation Deg,IntakeState
 			{START,      0,         0,      0,      0,       0,        0,  INTAKE_IN}, //Start at midfield location
-			{ARM_AUTO,   3000,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_IN},
-			{WAIT_AUTO,	 1000,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_IN},
+			// {ARM_AUTO,   3000,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_IN},
+			// {WAIT_AUTO,	 1000,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_IN},
 			{ARM_AUTO,   2000,		0,		0,HP_PICKUP,	 0,		   0,  INTAKE_IN},
-			{WAIT_AUTO,	 1000,		0,		0,HP_PICKUP,	 0,		   0,  INTAKE_IN},
+			{WAIT_AUTO,	 500,		0,		0,HP_PICKUP,	 0,		   0,  INTAKE_IN},
 			{ARM_AUTO,   2000,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_IN},
 			{WAIT_AUTO,	 1000,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_IN},
-			{ARM_AUTO,   2000,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_EJECT},
+			{ARM_AUTO,   500,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_EJECT},
 			{WAIT_AUTO,  500,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_EJECT},
 			{ARM_AUTO,   2000,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_EJECT},
-			{WAIT_AUTO,  500,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_EJECT},
-			{MOVE,	 	 250,		0,		30,		0,		 150,	   0,  INTAKE_IN},
+			{WAIT_AUTO,  250,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_EJECT},
+			{MOVE,	 	 250,		0,		30,		0,		 130,	   0,  INTAKE_IN},
 			{ARM_AUTO,   3000,		0,		0,AUTO_FLOOR,	 CUBE,		   0,  INTAKE_IN},
-			{MOVE,	 	 10,	    5,		15,		-16,	 210,	   0,  INTAKE_IN},
+			{MOVE,	 	 10,	    5,		20,		-30,	 210,	   0,  INTAKE_IN},
 			{ARM_AUTO,   3000,		0,		0,TRAVEL_POS,	 CUBE,		   0,  INTAKE_HOLD},
-			{MOVE,	 	 250,		5,		30,	  -22,		 140,		  180,  INTAKE_HOLD},
-			{ARM_AUTO,   3000,		0,		0,AUTO_FLOOR,	 CUBE,		   0,  INTAKE_IN},
-			{MOVE,	 	 250,		5,		30,	  -22,		 -22,		  180,  INTAKE_IN},
+			{MOVE,	 	 250,		5,		40,	  -24,		 140,		  180,  INTAKE_HOLD},
+			{ARM_AUTO,   3000,		0,		0,Auto_LOW_SCORE,	 CUBE,		   0,  INTAKE_IN},
+			{MOVE,	 	 250,		5,		40,	  -24,		 -20,		  180,  INTAKE_IN},
 			{STOP,       0,         0,      0,      0,       0,        0,       INTAKE_EJECT},	//STOP
 }; 
 
@@ -383,8 +385,9 @@ class Robot : public frc::TimedRobot {
 		{54265,2129,54265,2129},//SHUTE_PICKUP
 		//Auto
 		// {16954,3235,38127,4214}, //FLOOR_PICKUP
-		{30700,3586,48801,4120}, //FLOOR_PICKUP
-		{250669,2214,112180,3367}, //TOP_SCORE
+		{46333,3586,46333,4120}, //FLOOR_PICKUP
+		{255439,2099,112180,3367}, //TOP_SCORE
+		{20000,1000,20000,1000} //LOW_SCORE
 	};
 
 	long ShoulderTarget = 0;
@@ -1043,7 +1046,7 @@ class Robot : public frc::TimedRobot {
 						
 					
 
-						if(AutoTime.Get().value() > 2.5){
+						if(AutoTime.Get().value() > 1.0){
 							AutoLine++;
 						    FirstPass=1;
 					        TeleStarted=0; //Trigger Timer to reset and run on power to wheels
