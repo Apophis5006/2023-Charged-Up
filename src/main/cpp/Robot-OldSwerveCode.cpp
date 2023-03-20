@@ -135,7 +135,7 @@ int MOVE_TEST_AutoArray[NUMAUTOLINES][8]={
 
 const std::string NO_MOVE_SELECTIONSTRING = "No Move";
 int NO_MOVE_AutoArray[NUMAUTOLINES][8]={
-	{START,      0,         0,      0,      0,       0,        0,            0},
+	{START,      1,         0,      0,      0,       0,        0,            0},
 	{STOP,       0,         0,      0,      0,       0,        0,            0},	//STOP
 };
 
@@ -231,6 +231,7 @@ class Robot : public frc::TimedRobot {
 			}
 			
 			std::string selectedAuto = AutoChooser.GetSelected();
+			wpi::outs() << selectedAuto;
 			if(selectedAuto == BALANCE_SELECTION_STRING) AutoArray=BALANCE_AutoArray;	
 			else if(selectedAuto == VL_SELECTION_STRING) AutoArray=VL_AutoArray;
 			else if(selectedAuto == MOVE_TEST_SELECTION_STRING) AutoArray=MOVE_TEST_AutoArray;
@@ -239,6 +240,8 @@ class Robot : public frc::TimedRobot {
 	   }
 	   AutoTime.Start();
 	
+		wpi::outs() << AutoChooser.GetSelected() + '\n';
+
 		RunShoulder();
 		RunWrist();
 		RunIntake();
@@ -990,6 +993,7 @@ class Robot : public frc::TimedRobot {
 		if(DecInches==0) MaxFromDcel=100;
 		else MaxFromDcel=(pow(RemainingInches,2)*10000)/pow(DecInches,2);
 		//Get msec since we started and divide by msec to full power for power limit from acceleration
+		if(AccSec==0) AccSec=1;
 		MaxFromAcel=(int)(AutoTime.Get()*100000)/AccSec;
 
 		// MaxFromAcel=100;
@@ -1416,7 +1420,7 @@ class Robot : public frc::TimedRobot {
 		AutoChooser.AddOption(BALANCE_SELECTION_STRING,BALANCE_SELECTION_STRING);
   		AutoChooser.AddOption(VL_SELECTION_STRING,VL_SELECTION_STRING);
 		AutoChooser.AddOption(MOVE_TEST_SELECTION_STRING,MOVE_TEST_SELECTION_STRING);
-  		frc::SmartDashboard::PutData("Auto Selector", &AutoChooser);
+  		frc::SmartDashboard::PutData("Auto Modes", &AutoChooser);
 
 		#ifdef CAMERA
 		frc::CameraServer::StartAutomaticCapture();
