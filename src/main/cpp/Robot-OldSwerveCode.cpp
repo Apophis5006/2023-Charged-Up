@@ -129,6 +129,29 @@ int VL_AutoArray[NUMAUTOLINES][8]={
 			{STOP,       0,         0,      0,      0,       0,        0,       INTAKE_EJECT},	//STOP
 }; 
 
+int VR_AutoArray[NUMAUTOLINES][8]={
+	        //CMD,   Acc mSec,Dec Inches, MaxPwr,TargetX, TargetY, Orientation Deg,IntakeState
+			{START,      0,         0,      0,      0,       0,        0,  INTAKE_IN}, //Start at midfield location
+			// {ARM_AUTO,   3000,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_IN},
+			// {WAIT_AUTO,	 1000,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_IN},
+			{ARM_AUTO,   2000,		0,		0,HP_PICKUP,	 0,		   0,  INTAKE_IN},
+			{WAIT_AUTO,	 500,		0,		0,HP_PICKUP,	 0,		   0,  INTAKE_IN},
+			{ARM_AUTO,   2000,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_IN},
+			{WAIT_AUTO,	 1000,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_IN},
+			{ARM_AUTO,   500,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_EJECT},
+			{WAIT_AUTO,  500,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_EJECT},
+			{ARM_AUTO,   2000,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_EJECT},
+			{WAIT_AUTO,  250,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_EJECT},
+			{MOVE,	 	 250,		0,		30,		0,		 130,	   0,  INTAKE_IN},
+			{ARM_AUTO,   3000,		0,		0,AUTO_FLOOR,	 CUBE,		   0,  INTAKE_IN},
+			{MOVE,	 	 10,	    5,		20,		8,	 210,	   0,  INTAKE_IN},
+			{ARM_AUTO,   3000,		0,		0,TRAVEL_POS,	 CUBE,		   0,  INTAKE_HOLD},
+			{MOVE,	 	 250,		5,		40,	  2,		 140,		  180,  INTAKE_HOLD},
+			{ARM_AUTO,   3000,		0,		0,Auto_LOW_SCORE,	 CUBE,		   0,  INTAKE_IN},
+			{MOVE,	 	 250,		5,		40,	  -22,		 -35,		  180,  INTAKE_IN},
+			{STOP,       0,         0,      0,      0,       0,        0,       INTAKE_EJECT},	//STOP
+}; 
+
 int MOVE_TEST_AutoArray[NUMAUTOLINES][8]={
 	        //CMD,   Acc mSec,Dec Inches, MaxPwr,TargetX, TargetY, Orientation Deg,IntakeState
 			{START,      0,         0,      0,      0,       0,        0,            0}, //Start at midfield location
@@ -233,7 +256,7 @@ class Robot : public frc::TimedRobot {
 			
 			switch (0){ //`fix
 				case 0:
-					AutoArray = VL_AutoArray;
+					AutoArray = VR_AutoArray;
 					// AutoArray = MOVE_TEST_AutoArray;
 					// AutoArray=BALANCE_AutoArray;
 					// AutoArray=LEAVE_ZONE_AutoArray;		
