@@ -61,6 +61,8 @@ int AutoArraySet=0;
 //Auto
 #define AUTO_FLOOR 8 
 #define AUTO_TOP 9
+#define Auto_LOW_SCORE 10
+
 int ArmPosition = TRAVEL_POS;
 int ArmManual = 0;
 #define CONE 0
@@ -113,11 +115,35 @@ int VL_AutoArray[NUMAUTOLINES][8]={
 			{WAIT_AUTO,  500,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_EJECT},
 			{MOVE,	 	 250,		0,		30,		0,		 150,	   0,  INTAKE_IN},
 			{ARM_AUTO,   3000,		0,		0,AUTO_FLOOR,	 CUBE,		   0,  INTAKE_IN},
-			{MOVE,	 	 10,	    5,		15,		-16,	 210,	   0,  INTAKE_IN},
+			{MOVE,	 	 10,	    5,		15,		-19,	 210,	   0,  INTAKE_IN}, //-16
 			{ARM_AUTO,   3000,		0,		0,TRAVEL_POS,	 CUBE,		   0,  INTAKE_IN},
 			{MOVE,	 	 250,		5,		30,	  -22,		 140,		  180,  INTAKE_IN},
 			{ARM_AUTO,   3000,		0,		0,AUTO_FLOOR,	 CUBE,		   0,  INTAKE_IN},
 			{MOVE,	 	 250,		5,		30,	  -22,		 -22,		  180,  INTAKE_IN},
+			{STOP,       0,         0,      0,      0,       0,        0,       INTAKE_EJECT},	//STOP
+}; 
+
+const std::string VR_SELECTION_STRING = "Veer Right";
+int VR_AutoArray[NUMAUTOLINES][8]={
+	        //CMD,   Acc mSec,Dec Inches, MaxPwr,TargetX, TargetY, Orientation Deg,IntakeState
+			{START,      0,         0,      0,      0,       0,        0,  INTAKE_IN}, //Start at midfield location
+			// {ARM_AUTO,   3000,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_IN},
+			// {WAIT_AUTO,	 1000,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_IN},
+			{ARM_AUTO,   2000,		0,		0,HP_PICKUP,	 0,		   0,  INTAKE_IN},
+			{WAIT_AUTO,	 500,		0,		0,HP_PICKUP,	 0,		   0,  INTAKE_IN},
+			{ARM_AUTO,   2000,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_IN},
+			{WAIT_AUTO,	 1000,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_IN},
+			{ARM_AUTO,   500,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_EJECT},
+			{WAIT_AUTO,  500,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_EJECT},
+			{ARM_AUTO,   2000,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_EJECT},
+			{WAIT_AUTO,  250,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_EJECT},
+			{MOVE,	 	 250,		0,		30,		0,		 130,	   0,  INTAKE_IN},
+			{ARM_AUTO,   3000,		0,		0,AUTO_FLOOR,	 CUBE,		   0,  INTAKE_IN},
+			{MOVE,	 	 10,	    5,		20,		8,	 210,	   0,  INTAKE_IN},
+			{ARM_AUTO,   3000,		0,		0,TRAVEL_POS,	 CUBE,		   0,  INTAKE_HOLD},
+			{MOVE,	 	 250,		5,		40,	  2,		 140,		  180,  INTAKE_HOLD},
+			{ARM_AUTO,   3000,		0,		0,Auto_LOW_SCORE,	 CUBE,		   0,  INTAKE_IN},
+			{MOVE,	 	 250,		5,		40,	  -22,		 -35,		  180,  INTAKE_IN},
 			{STOP,       0,         0,      0,      0,       0,        0,       INTAKE_EJECT},	//STOP
 }; 
 
@@ -177,6 +203,7 @@ int NO_MOVE_AutoArray[NUMAUTOLINES][8]={
 #define PI 3.141592654
 #define SW_L 21.75   //Distance between wheels from front to back
 #define SW_W 21.75   //Distance between wheels from side to side
+#define WHEEL_DIAMETER (3)
 
 int TeleStarted=1;
 double Travel;
@@ -377,8 +404,11 @@ class Robot : public frc::TimedRobot {
 		{68500, 4955,68500, 4955},//CONE_VERTICAL
 		{54265,2129,54265,2129},//SHUTE_PICKUP
 		//Auto
-		{16954,3235,38127,4214}, //FLOOR_PICKUP
-		{250669,2214,112180,3367}, //TOP_SCORE
+		// {16954,3235,38127,4214}, //FLOOR_PICKUP
+		// {250669,2214,112180,3367}, //TOP_SCORE
+		{46333,3586,46333,4120}, //FLOOR_PICKUP
+		{255439,2099,112180,3367}, //TOP_SCORE
+		{20000,1000,20000,1000} //LOW_SCORE
 	};
 
 	long ShoulderTarget = 0;
@@ -451,8 +481,6 @@ class Robot : public frc::TimedRobot {
 		//cone cube
 		if(OpController.GetRawAxis(2)>0.5){
 			ObjectType = CUBE;
-			LedIn1.Set(0);
-			LedIn2.Set(1);
 			OpController.SetRumble(frc::GenericHID::RumbleType::kBothRumble,0.25);
 		}
 		else if(OpController.GetRawAxis(3)>0.5) {
@@ -546,6 +574,13 @@ class Robot : public frc::TimedRobot {
 	void RunShoulder(){
 		if(SelectedPosition>=0) ShoulderTarget = ArmPoses[SelectedPosition][ObjectType+SHOULDER_POSE];
 		
+		if(ObjectType == CUBE){
+			LedIn1.Set(0);
+			LedIn2.Set(1);
+		}else{
+			LedIn1.Set(1);
+			LedIn2.Set(0);
+		}
 
 		//Shoulder Limits
 		// if(ShoulderTarget>MAX_SHOULDER){
@@ -965,7 +1000,8 @@ class Robot : public frc::TimedRobot {
 			default:
 				result=0.0;
 		}
-		return(result/780);
+		// return(result/780);
+		return (result/814.87);
 	}
 
 
@@ -1374,8 +1410,8 @@ class Robot : public frc::TimedRobot {
 		Shoulder.SetStatusFramePeriod(StatusFrameEnhanced::Status_10_MotionMagic, 10, TIMEOUT);
 
 		// Set acceleration and vcruise velocity - see documentation 
-		Shoulder.ConfigMotionCruiseVelocity(250000, TIMEOUT); //50000
-		Shoulder.ConfigMotionAcceleration(20000, TIMEOUT); //40000
+		Shoulder.ConfigMotionCruiseVelocity(500000, TIMEOUT); //50000
+		Shoulder.ConfigMotionAcceleration(40000, TIMEOUT); //40000
 		Shoulder.ConfigMotionSCurveStrength(0,TIMEOUT);
 
 		Wrist.ConfigSelectedFeedbackSensor(FeedbackDevice::QuadEncoder, 0, NOTIMEOUT);	 
@@ -1419,6 +1455,7 @@ class Robot : public frc::TimedRobot {
 		AutoChooser.SetDefaultOption(NO_MOVE_SELECTIONSTRING,NO_MOVE_SELECTIONSTRING);
 		AutoChooser.AddOption(BALANCE_SELECTION_STRING,BALANCE_SELECTION_STRING);
   		AutoChooser.AddOption(VL_SELECTION_STRING,VL_SELECTION_STRING);
+		AutoChooser.AddOption(VR_SELECTION_STRING,VR_SELECTION_STRING);
 		AutoChooser.AddOption(MOVE_TEST_SELECTION_STRING,MOVE_TEST_SELECTION_STRING);
   		frc::SmartDashboard::PutData("Auto Modes", &AutoChooser);
 
