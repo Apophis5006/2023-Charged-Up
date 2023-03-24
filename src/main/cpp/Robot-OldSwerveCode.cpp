@@ -81,20 +81,16 @@ int AutoIntake = INTAKE_IDLE;
 const std::string BALANCE_SELECTION_STRING = "Balance";
 int BALANCE_AutoArray[NUMAUTOLINES][8]={
 	        //CMD,   Acc mSec,Dec Inches, MaxPwr,TargetX, TargetY, Orientation Deg,IntakeState
-			{START,      0,         0,      0,      0,       0,        0,            0}, //Start at midfield location
-			{ARM_AUTO,   3000,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_IN},
-			{WAIT_AUTO,	 1000,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_IN},
+			{START,      0,         0,      0,      0,       0,        0,  INTAKE_IN}, //Start at midfield location
 			{ARM_AUTO,   2000,		0,		0,HP_PICKUP,	 0,		   0,  INTAKE_IN},
-			{WAIT_AUTO,	 1000,		0,		0,HP_PICKUP,	 0,		   0,  INTAKE_IN},
-			{ARM_AUTO,   2000,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_IN},
-			{WAIT_AUTO,	 1000,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_IN},
-			{ARM_AUTO,   2000,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_EJECT},
-			{WAIT_AUTO,  500,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_EJECT},
+			{WAIT_AUTO,	 500,		0,		0,HP_PICKUP,	 0,		   0,  INTAKE_IN},
+			{ARM_AUTO,   2000,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_HOLD},
+			{WAIT_AUTO,	 1000,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_HOLD},
+			{ARM_AUTO,   500,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_EJECT},
+			{WAIT_AUTO,  500,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_EJECT},
 			{ARM_AUTO,   2000,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_EJECT},
-			{WAIT_AUTO,  500,		0,		0,TOP_SCORE,	 0,		   0,  INTAKE_EJECT},
-			// {MOVE_TIMED, 	0,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_EJECT},
-			// {MOVE,	 	 250,		5,		30,		0,		 30,		   0,  INTAKE_IDLE},
-			{BALANCE,	 500,		0,		20,		0,		 100,		   0,  INTAKE_EJECT}, //was 25 pwr
+			{WAIT_AUTO,  250,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_EJECT},
+			{BALANCE,	 500,		0,		15,		0,		 200,		   0,  INTAKE_EJECT}, //was 25 pwr
 			{STOP,       0,         0,      0,      0,       0,        0,            0},	//STOP
 };
 
@@ -103,16 +99,14 @@ const std::string VL_SELECTION_STRING = "Veer Left";
 int VL_AutoArray[NUMAUTOLINES][8]={
 	        //CMD,   Acc mSec,Dec Inches, MaxPwr,TargetX, TargetY, Orientation Deg,IntakeState
 			{START,      0,         0,      0,      0,       0,        0,  INTAKE_IN}, //Start at midfield location
-			{ARM_AUTO,   3000,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_IN},
-			{WAIT_AUTO,	 1000,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_IN},
 			{ARM_AUTO,   2000,		0,		0,HP_PICKUP,	 0,		   0,  INTAKE_IN},
-			{WAIT_AUTO,	 1000,		0,		0,HP_PICKUP,	 0,		   0,  INTAKE_IN},
-			{ARM_AUTO,   2000,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_IN},
-			{WAIT_AUTO,	 1000,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_IN},
-			{ARM_AUTO,   2000,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_EJECT},
+			{WAIT_AUTO,	 500,		0,		0,HP_PICKUP,	 0,		   0,  INTAKE_IN},
+			{ARM_AUTO,   2000,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_HOLD},
+			{WAIT_AUTO,	 1000,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_HOLD},
+			{ARM_AUTO,   500,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_EJECT},
 			{WAIT_AUTO,  500,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_EJECT},
 			{ARM_AUTO,   2000,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_EJECT},
-			{WAIT_AUTO,  500,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_EJECT},
+			{WAIT_AUTO,  250,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_EJECT},
 			{MOVE,	 	 250,		0,		30,		0,		 150,	   0,  INTAKE_IN},
 			{ARM_AUTO,   3000,		0,		0,AUTO_FLOOR,	 CUBE,		   0,  INTAKE_IN},
 			{MOVE,	 	 10,	    5,		15,		-19,	 210,	   0,  INTAKE_IN}, //-16
@@ -131,8 +125,8 @@ int VR_AutoArray[NUMAUTOLINES][8]={
 			// {WAIT_AUTO,	 1000,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_IN},
 			{ARM_AUTO,   2000,		0,		0,HP_PICKUP,	 0,		   0,  INTAKE_IN},
 			{WAIT_AUTO,	 500,		0,		0,HP_PICKUP,	 0,		   0,  INTAKE_IN},
-			{ARM_AUTO,   2000,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_IN},
-			{WAIT_AUTO,	 1000,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_IN},
+			{ARM_AUTO,   2000,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_HOLD},
+			{WAIT_AUTO,	 1000,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_HOLD},
 			{ARM_AUTO,   500,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_EJECT},
 			{WAIT_AUTO,  500,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_EJECT},
 			{ARM_AUTO,   2000,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_EJECT},
@@ -146,6 +140,16 @@ int VR_AutoArray[NUMAUTOLINES][8]={
 			{MOVE,	 	 250,		5,		40,	  -22,		 -35,		  180,  INTAKE_IN},
 			{STOP,       0,         0,      0,      0,       0,        0,       INTAKE_EJECT},	//STOP
 }; 
+
+const std::string CUBE_PICKUP_TEST_SELECTION_STRING = "Cube Pickup Test";
+int CUBE_PICKUP_TEST_AutoArray[NUMAUTOLINES][8]={
+    //CMD,   Acc mSec,Dec Inches, MaxPwr,TargetX, TargetY, Orientation Deg,IntakeState
+	{START,      0,         0,      0,      0,       0,        0,            0},
+	{ARM_AUTO,   1000,		0,		0,AUTO_FLOOR,	 CUBE,		   0,  INTAKE_IN},
+	{MOVE,	 	 10,	    5,		20,		8,	 50,	   0,  INTAKE_IN},
+	{ARM_AUTO,   3000,		0,		0,TRAVEL_POS,	 CUBE,		   0,  INTAKE_HOLD},
+	{STOP,       0,         0,      0,      0,       0,        0, INTAKE_EJECT},	//STOP
+};
 
 const std::string MOVE_TEST_SELECTION_STRING = "Move Test";
 int MOVE_TEST_AutoArray[NUMAUTOLINES][8]={
@@ -261,13 +265,15 @@ class Robot : public frc::TimedRobot {
 			wpi::outs() << selectedAuto;
 			if(selectedAuto == BALANCE_SELECTION_STRING) AutoArray=BALANCE_AutoArray;	
 			else if(selectedAuto == VL_SELECTION_STRING) AutoArray=VL_AutoArray;
+			else if(selectedAuto == VR_SELECTION_STRING) AutoArray=VR_AutoArray;
+			else if(selectedAuto == CUBE_PICKUP_TEST_SELECTION_STRING) AutoArray=CUBE_PICKUP_TEST_AutoArray;
 			else if(selectedAuto == MOVE_TEST_SELECTION_STRING) AutoArray=MOVE_TEST_AutoArray;
 			else AutoArray=NO_MOVE_AutoArray;
 			
 	   }
 	   AutoTime.Start();
 	
-		wpi::outs() << AutoChooser.GetSelected() + '\n';
+		
 
 		RunShoulder();
 		RunWrist();
@@ -396,13 +402,13 @@ class Robot : public frc::TimedRobot {
 	//	cone Sholder Position	cone Wrist Position, cube shoulder, cube wrist
 		{20000,MIN_WRIST,20000,MIN_WRIST}, //TRAVEL_POS		
 		// {130400,5084,129792,5046},// HP_PICKUP Sideways
-		{152783, 5766, 129792,5046},// HP_PICKUP
+		{156300, 5766, 129792,5046},// HP_PICKUP
 		{127531, 5084,124500,5046},// HP_PICK_DROP 
 		{30700, 3586,50600, 4120},// FLOOR_PICKUP
 		{124620,4931,114150,4019},// MID_SCORE
 		{271858, 2223,112180,3367},// TOP_SCORE		
 		{68500, 4955,68500, 4955},//CONE_VERTICAL
-		{54265,2129,54265,2129},//SHUTE_PICKUP
+		{47400,2073,47400,2073},//SHUTE_PICKUP
 		//Auto
 		// {16954,3235,38127,4214}, //FLOOR_PICKUP
 		// {250669,2214,112180,3367}, //TOP_SCORE
@@ -614,7 +620,9 @@ class Robot : public frc::TimedRobot {
 		double intakePercent = 0.0;
 		// if(!IsAutonomous()){
 			if(OpController.GetPOV()==0 || dir_stick.GetTrigger() || (IsAutonomous() && (AutoIntake == INTAKE_IN))){ //intake
-				intakePercent=1.0;
+				// if(IsAutonomous()) intakePercent=1.0;
+				//else 
+				intakePercent = 0.75;
 				InLast=1;
 			}
 			else if(OpController.GetPOV()==180 || dir_stick.GetRawButton(2) || (IsAutonomous() && (AutoIntake == INTAKE_EJECT))){//outake
@@ -693,7 +701,8 @@ class Robot : public frc::TimedRobot {
 			// sprintf(str,"Pitch:%4.2f",RobotPitch);
 			// sprintf(str,"%s",frc::SmartDashboard::GetData("Auto Selector"));
 			// sprintf(str,"V:%4.2f",FLDrive.GetSelectedSensorVelocity());
-			sprintf(str,"Dir%4.2f,Dist%4.2f",tempPrint,tempPrint2);
+			// sprintf(str,"Dir%4.2f,Dist%4.2f",tempPrint,tempPrint2);
+			sprintf(str,"Cur:%4.2f",Intake.GetStatorCurrent());
 			frc::SmartDashboard::PutString("DB/String 8",str);
 			// sprintf(str,"ShCur:%4.2f",Shoulder.GetOutputCurrent());
 			sprintf(str,"PosX%4.2f,Y%4.2f",RobotX[IDX],RobotY[IDX]);
@@ -730,7 +739,8 @@ class Robot : public frc::TimedRobot {
 								// sprintf(str, "Pwr:%4.2f",MaxPower);
 								sprintf(str,"ST%ld",ShoulderTarget);
 								frc::SmartDashboard::PutString("DB/String 4", str);
-								sprintf(str, "Ang T%d,A%3.0f",Orientation,fmod(RobotAngle,360.0));
+								// sprintf(str, "Ang T%d,A%3.0f",Orientation,fmod(RobotAngle,360.0));
+								sprintf(str,"Time:%4.2f",AutoTime.Get());
 								frc::SmartDashboard::PutString("DB/String 5", str);
 								sprintf(str, "A:%d,%d,%d,%d",(int)ActDir[FL],(int)ActDir[FR],(int)ActDir[RL],(int)ActDir[RR]);
 								frc::SmartDashboard::PutString("DB/String 6", str);
@@ -739,10 +749,10 @@ class Robot : public frc::TimedRobot {
 								// sprintf(str, "TMR: %f",TeleTime.Get());
 								sprintf(str,"SWRVY %4.2f,SWRVX%4.2f",SWRVY,SWRVX);
 								frc::SmartDashboard::PutString("DB/String 8", str);
-								// sprintf(str, "Ptch:%4.2f,RH:%d",RobotPitch,RampHit);
+								sprintf(str, "Ptch:%4.2f,RH:%d",RobotPitch,RampHit);
 								// sprintf(str,"IN:%d,A%d",AutoIntake,IsAutonomous());
 								// sprintf(str,"DIR%4.2f",tempPrint);
-								sprintf(str,"S%ld,W%ld",ArmPoses[SelectedPosition][ObjectType+SHOULDER_POSE],ArmPoses[SelectedPosition][ObjectType+WRIST_POSE]);
+								// sprintf(str,"S%ld,W%ld",ArmPoses[SelectedPosition][ObjectType+SHOULDER_POSE],ArmPoses[SelectedPosition][ObjectType+WRIST_POSE]);
 								frc::SmartDashboard::PutString("DB/String 9", str);
 
 
@@ -1005,7 +1015,7 @@ class Robot : public frc::TimedRobot {
 	}
 
 
-
+	double MaxPitch = 0.0;
   	//AUTONOMOUS DRIVING STATE MACHINE
     void AutoStateMachine(void){
 		int *Array, RemainingInches;
@@ -1070,7 +1080,7 @@ class Robot : public frc::TimedRobot {
 						
 					
 
-						if(AutoTime.Get().value() > 2.5){
+						if(AutoTime.Get().value() > .25){ //2.5
 							AutoLine++;
 						    FirstPass=1;
 					        TeleStarted=0; //Trigger Timer to reset and run on power to wheels
@@ -1083,13 +1093,19 @@ class Robot : public frc::TimedRobot {
 						if(fctr==0.0) fctr=1.0;
 						
 						AutoDriveX=0.0; //(double)((RobotPitch/15)*20)/100.0;
-						if(RobotPitch>12.0) RampHit=1;
+						if(RobotPitch>15.0) RampHit=1;
 						if(RampHit){
                             //AutoDriveY=(double)((RobotPitch/15.0)*10.0)/100.0;
 							if(RobotPitch>15.0)RobotPitch=15.0;
 							if(RobotPitch<-15.0)RobotPitch=-15.0;
-							Y=pow((RobotPitch/15.0),3);
-						    AutoDriveY=(double)((Y)*10.0)/100.0; //Pwr was 50
+							// Y=pow((RobotPitch/15.0),3);
+							Y=pow(RobotPitch/15.0,5);
+							// Y=sin(RobotPitch/15.0);
+							AutoDriveY=(double)((Y)*10.0)/100.0;
+						    
+							if(AutoDriveY<0.07 && AutoDriveY > -0.07) AutoDriveY= 0.07 * (AutoDriveY/fabs(AutoDriveY));
+							
+							
 							
 						} else{
 							AutoDriveY=(double)((Y/(fctr))*MaxPower)/100.0;
@@ -1116,17 +1132,27 @@ class Robot : public frc::TimedRobot {
 						   FirstPass=1;
 						}
 						
-						if(RampHit){
-							if(RobotPitch <1.0  && RobotPitch > -1.0 && RampHit){
-                            if(AutoTime.Get().value() > 2.0){
-						 	  AutoLine++;
-							  AutoTime.Reset();
-						 	  FirstPass=1;
-						    }
-						 }else{
+						
+						if(fabs(RobotPitch) > MaxPitch) MaxPitch = fabs(RobotPitch);
+
+						if(RampHit && (MaxPitch - 6.0 >  RobotPitch)){
+							AutoLine++;
 							AutoTime.Reset();
-						 }
+							FirstPass=1;
 						}
+
+						/*if(RampHit){
+							if(RobotPitch <10.0  && RobotPitch > -10.0 && RampHit){ //1,2
+								
+								//if(AutoTime.Get().value() > 2.0){
+								AutoLine++;
+								AutoTime.Reset();
+								FirstPass=1;
+								//}
+						 	}else{
+								AutoTime.Reset();
+						 	}
+						}*/
 						 break;
 			case MOVE:  //Determine direction and rotation values from autonomous command
 			            fctr=fabs(X)+fabs(Y);
@@ -1456,6 +1482,7 @@ class Robot : public frc::TimedRobot {
 		AutoChooser.AddOption(BALANCE_SELECTION_STRING,BALANCE_SELECTION_STRING);
   		AutoChooser.AddOption(VL_SELECTION_STRING,VL_SELECTION_STRING);
 		AutoChooser.AddOption(VR_SELECTION_STRING,VR_SELECTION_STRING);
+		AutoChooser.AddOption(CUBE_PICKUP_TEST_SELECTION_STRING,CUBE_PICKUP_TEST_SELECTION_STRING);
 		AutoChooser.AddOption(MOVE_TEST_SELECTION_STRING,MOVE_TEST_SELECTION_STRING);
   		frc::SmartDashboard::PutData("Auto Modes", &AutoChooser);
 
