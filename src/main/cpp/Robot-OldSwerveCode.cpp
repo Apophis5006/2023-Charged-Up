@@ -110,10 +110,10 @@ int VL_AutoArray[NUMAUTOLINES][8]={
 			{MOVE,	 	 250,		0,		30,		0,		 150,	   0,  INTAKE_IN},
 			{ARM_AUTO,   3000,		0,		0,AUTO_FLOOR,	 CUBE,		   0,  INTAKE_IN},
 			{MOVE,	 	 10,	    5,		15,		-19,	 210,	   0,  INTAKE_IN}, //-16
-			{ARM_AUTO,   3000,		0,		0,TRAVEL_POS,	 CUBE,		   0,  INTAKE_IN},
-			{MOVE,	 	 250,		5,		30,	  -22,		 140,		  180,  INTAKE_IN},
-			{ARM_AUTO,   3000,		0,		0,AUTO_FLOOR,	 CUBE,		   0,  INTAKE_IN},
-			{MOVE,	 	 250,		5,		30,	  -22,		 -22,		  180,  INTAKE_IN},
+			{ARM_AUTO,   3000,		0,		0,TRAVEL_POS,	 CUBE,		   0,  INTAKE_HOLD},
+			{MOVE,	 	 250,		5,		30,	  -22,		 140,		  180,  INTAKE_HOLD},
+			{ARM_AUTO,   3000,		0,		0,Auto_LOW_SCORE,	 CUBE,		   0,  INTAKE_HOLD},
+			{MOVE,	 	 250,		5,		30,	  -22,		 -22,		  180,  INTAKE_HOLD},
 			{STOP,       0,         0,      0,      0,       0,        0,       INTAKE_EJECT},	//STOP
 }; 
 
@@ -136,8 +136,8 @@ int VR_AutoArray[NUMAUTOLINES][8]={
 			{MOVE,	 	 10,	    5,		20,		8,	 210,	   0,  INTAKE_IN},
 			{ARM_AUTO,   3000,		0,		0,TRAVEL_POS,	 CUBE,		   0,  INTAKE_HOLD},
 			{MOVE,	 	 250,		5,		40,	  2,		 140,		  180,  INTAKE_HOLD},
-			{ARM_AUTO,   3000,		0,		0,Auto_LOW_SCORE,	 CUBE,		   0,  INTAKE_IN},
-			{MOVE,	 	 250,		5,		40,	  -22,		 -35,		  180,  INTAKE_IN},
+			{ARM_AUTO,   3000,		0,		0,Auto_LOW_SCORE,	 CUBE,		   0,  INTAKE_HOLD},
+			{MOVE,	 	 250,		5,		40,	  -22,		 -35,		  180,  INTAKE_HOLD},
 			{STOP,       0,         0,      0,      0,       0,        0,       INTAKE_EJECT},	//STOP
 }; 
 
@@ -145,9 +145,10 @@ const std::string CUBE_PICKUP_TEST_SELECTION_STRING = "Cube Pickup Test";
 int CUBE_PICKUP_TEST_AutoArray[NUMAUTOLINES][8]={
     //CMD,   Acc mSec,Dec Inches, MaxPwr,TargetX, TargetY, Orientation Deg,IntakeState
 	{START,      0,         0,      0,      0,       0,        0,            0},
-	{ARM_AUTO,   1000,		0,		0,AUTO_FLOOR,	 CUBE,		   0,  INTAKE_IN},
-	{MOVE,	 	 10,	    5,		20,		8,	 50,	   0,  INTAKE_IN},
 	{ARM_AUTO,   3000,		0,		0,TRAVEL_POS,	 CUBE,		   0,  INTAKE_HOLD},
+	{ARM_AUTO,   1000,		0,		0,Auto_LOW_SCORE,	 CUBE,		   0,  INTAKE_EJECT},
+	// {MOVE,	 	 10,	    5,		20,		8,	 50,	   0,  INTAKE_IN},
+	// {ARM_AUTO,   3000,		0,		0,TRAVEL_POS,	 CUBE,		   0,  INTAKE_HOLD},
 	{STOP,       0,         0,      0,      0,       0,        0, INTAKE_EJECT},	//STOP
 };
 
@@ -404,10 +405,10 @@ class Robot : public frc::TimedRobot {
 		// {130400,5084,129792,5046},// HP_PICKUP Sideways
 		{156300, 5766, 129792,5046},// HP_PICKUP
 		{127531, 5084,124500,5046},// HP_PICK_DROP 
-		{30700, 3586,50600, 4120},// FLOOR_PICKUP
+		{30700, 3586,55000, 4120},// FLOOR_PICKUP
 		{124620,4931,114150,4019},// MID_SCORE
 		{271858, 2223,112180,3367},// TOP_SCORE		
-		{68500, 4955,68500, 4955},//CONE_VERTICAL
+		{74400, 4955,74400, 4955},//CONE_VERTICAL
 		{47400,2073,47400,2073},//SHUTE_PICKUP
 		//Auto
 		// {16954,3235,38127,4214}, //FLOOR_PICKUP
@@ -1447,9 +1448,9 @@ class Robot : public frc::TimedRobot {
 	    Wrist.ConfigPeakOutputForward(+12.0f, TIMEOUT);
 	 	Wrist.ConfigPeakOutputReverse(-12.0f, TIMEOUT);
 		Wrist.SelectProfileSlot(0, 0);
-		Wrist.Config_kP(0, 1.0, TIMEOUT); //1.5//.85
+		Wrist.Config_kP(0, .75, TIMEOUT); //1.5//.85//1.0
 		Wrist.Config_kI(0, 0.0, TIMEOUT);
-		Wrist.Config_kD(0, 0.2, TIMEOUT);
+		Wrist.Config_kD(0, 10.0, TIMEOUT); //0.2
 		Wrist.SetNeutralMode(NeutralMode::Brake); //`Coast
 		// Wrist.ConfigPeakCurrentLimit(1,TIMEOUT);
 		Wrist.Set(ControlMode::PercentOutput, 0.0);
