@@ -52,12 +52,11 @@ int AutoArraySet=0;
 //Arm Positions
 #define TRAVEL_POS 0
 #define HP_PICKUP 1
-#define HP_PICK_DROP 2
-#define FLOOR_PICKUP 3
-#define MID_SCORE 4
-#define TOP_SCORE 5
-#define CONE_VERTICAL 6
-#define SHUTE_PICKUP 7
+#define FLOOR_PICKUP 2
+#define MID_SCORE 3
+#define TOP_SCORE 4
+#define CONE_VERTICAL 5
+#define SHUTE_PICKUP 6
 //Auto
 #define AUTO_FLOOR 8 
 #define AUTO_TOP 9
@@ -401,15 +400,14 @@ class Robot : public frc::TimedRobot {
 	
 	long ArmPoses[12][4] = {
 	//	cone Sholder Position	cone Wrist Position, cube shoulder, cube wrist
-		{20000,MIN_WRIST,20000,MIN_WRIST}, //TRAVEL_POS		
-		// {130400,5084,129792,5046},// HP_PICKUP Sideways
-		{156300, 5766, 129792,5046},// HP_PICKUP
-		{127531, 5084,124500,5046},// HP_PICK_DROP 
-		{30700, 3586,55000, 4120},// FLOOR_PICKUP
-		{124620,4931,114150,4019},// MID_SCORE
-		{271858, 2223,112180,3367},// TOP_SCORE		
-		{74400, 4955,74400, 4955},//CONE_VERTICAL
-		{47400,2073,47400,2073},//SHUTE_PICKUP
+		{10000,MIN_WRIST,10000,MIN_WRIST}, //TRAVEL_POS		
+		{144500, 5766, 129792,5046},// HP_PICKUP
+		// {30700, 3586,55000, 4120},// FLOOR_PICKUP
+		{21700,3586,42500,4120}, //FLOOR_PICKUP
+		{114700,5006,114150,5000},// MID_SCORE
+		{271858, 2223,103180,3367},// TOP_SCORE		
+		{63500, 4955,63500, 4955},//CONE_VERTICAL
+		{47400,2073,47400,2073},//SHUTE_PICKUP //`Needs to be redone
 		//Auto
 		// {16954,3235,38127,4214}, //FLOOR_PICKUP
 		// {250669,2214,112180,3367}, //TOP_SCORE
@@ -505,7 +503,6 @@ class Robot : public frc::TimedRobot {
 		if(OpController.GetRawButton(1)) SelectedPosition = FLOOR_PICKUP;
 		else if(OpController.GetRawButton(2)) SelectedPosition = MID_SCORE;//FLOOR_PICKUP;
 		else if(OpController.GetRawButton(3)) SelectedPosition = HP_PICKUP;//MID_SCORE;
-		// else if(OpController.GetRawButtonReleased(3)) SelectedPosition = HP_PICK_DROP;
 		else if(OpController.GetRawButton(4)) SelectedPosition=TOP_SCORE;
 		else if(OpController.GetPOV()==90) SelectedPosition=CONE_VERTICAL;
 		else if(OpController.GetPOV()==270) SelectedPosition=SHUTE_PICKUP;
@@ -988,7 +985,7 @@ class Robot : public frc::TimedRobot {
 				tempPrint = Dir;
 				tempPrint2 = NewPosition[IDX];
 			}
-			RobotX[i]-=Dist*sin((Dir*PI)/180.0); //` the result of sin((-100 * PI) / 180) appoximatly = 0.03. Potentially adding a small number to RobotX each time.	
+			RobotX[i]-=Dist*sin((Dir*PI)/180.0);	
 			RobotY[i]-=Dist*cos((Dir*PI)/180.0);
 		}
 	}	// End TrackRobot
@@ -1450,8 +1447,8 @@ class Robot : public frc::TimedRobot {
 		Wrist.SelectProfileSlot(0, 0);
 		Wrist.Config_kP(0, .75, TIMEOUT); //1.5//.85//1.0
 		Wrist.Config_kI(0, 0.0, TIMEOUT);
-		Wrist.Config_kD(0, 10.0, TIMEOUT); //0.2
-		Wrist.SetNeutralMode(NeutralMode::Brake); //`Coast
+		Wrist.Config_kD(0, 20.0, TIMEOUT); //0.2
+		Wrist.SetNeutralMode(NeutralMode::Brake);
 		// Wrist.ConfigPeakCurrentLimit(1,TIMEOUT);
 		Wrist.Set(ControlMode::PercentOutput, 0.0);
 		Wrist.EnableCurrentLimit(true);
