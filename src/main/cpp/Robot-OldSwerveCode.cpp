@@ -58,9 +58,9 @@ int AutoArraySet=0;
 #define CONE_VERTICAL 5
 #define SHUTE_PICKUP 6
 //Auto
-#define AUTO_FLOOR 8 
-#define AUTO_TOP 9
-#define Auto_LOW_SCORE 10
+#define AUTO_FLOOR 7 
+#define AUTO_TOP 8
+#define Auto_LOW_SCORE 9
 
 int ArmPosition = TRAVEL_POS;
 int ArmManual = 0;
@@ -411,7 +411,7 @@ class Robot : public frc::TimedRobot {
 		//Auto
 		// {16954,3235,38127,4214}, //FLOOR_PICKUP
 		// {250669,2214,112180,3367}, //TOP_SCORE
-		{46333,3586,46333,4120}, //FLOOR_PICKUP
+		{46333,3586,40500,4120}, //FLOOR_PICKUP
 		{255439,2099,112180,3367}, //TOP_SCORE
 		{20000,1000,20000,1000} //LOW_SCORE
 	};
