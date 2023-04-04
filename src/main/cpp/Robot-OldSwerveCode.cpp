@@ -21,7 +21,7 @@
 #include "AHRS.h"
 
 // #define CAMERA
-#define INTEGRATED_SHOULDER_ENCODER
+// #define INTEGRATED_SHOULDER_ENCODER
 
 #ifdef CAMERA
 #include <opencv2/core/core.hpp>
@@ -393,13 +393,15 @@ class Robot : public frc::TimedRobot {
 	#define SHOULDER_POSE 0
 	#define WRIST_POSE 1
 
-	#define MAX_SHOULDER 500000
-	#define MIN_SHOULDER 5000
 	#define MAX_WRIST 6000
 	#define MIN_WRIST 200 
 	
 
-	
+	#ifdef INTEGRATED_SHOULDER_ENCODER
+		#define MAX_SHOULDER 500000
+		#define MIN_SHOULDER 5000
+
+
 	long ArmPoses[12][4] = {
 	//	cone Sholder Position	cone Wrist Position, cube shoulder, cube wrist
 		{10000,MIN_WRIST,10000,MIN_WRIST}, //TRAVEL_POS		
@@ -417,6 +419,27 @@ class Robot : public frc::TimedRobot {
 		{255439,2099,112180,3367}, //TOP_SCORE
 		{20000,1000,20000,1000} //LOW_SCORE
 	};
+	#else
+
+		#define MAX_SHOULDER 2000
+		#define MIN_SHOULDER 15
+
+	long ArmPoses[12][4] = {
+
+	//	cone Sholder Position	cone Wrist Position, cube shoulder, cube wrist
+		{30,MIN_WRIST,30,MIN_WRIST}, //TRAVEL_POS		
+		{565,6021,456,5046},// HP_PICKUP
+		{11,3032,132,4120}, //FLOOR_PICKUP
+		{443,5216,376,4366},// MID_SCORE
+		{1049, 2237,442,4052},// TOP_SCORE		
+		{209, 4955,209, 4955},//CONE_VERTICAL
+		{136,2073,136,2073},//`SHUTE_PICKUP //`Needs to be redone
+		//Auto
+		{46333,3586,132,4120}, //`FLOOR_PICKUP
+		{1049, 2237,442,4052}, //`TOP_SCORE
+		{30,1000,30,1000} //`LOW_SCORE
+	};
+	#endif
 
 	long ShoulderTarget = 0;
 	long WristTarget =0;
@@ -561,8 +584,14 @@ class Robot : public frc::TimedRobot {
 
 
 		if(ObjectType==CONE &&  //prevents hight limit violation //`fix rist not moving at top_score
-		(((SelectedPosition==TOP_SCORE || SelectedPosition==AUTO_TOP) && Shoulder.GetSensorCollection().GetIntegratedSensorPosition() < 225000) ||
-		 (SelectedPosition!=TOP_SCORE && SelectedPosition!=AUTO_TOP && SelectedPosition!=-1 && Shoulder.GetSensorCollection().GetIntegratedSensorPosition() > ArmPoses[HP_PICKUP][SHOULDER_POSE])))
+		(
+		#ifdef INTEGRATED_SHOULDER_ENCODER
+		((SelectedPosition==TOP_SCORE || SelectedPosition==AUTO_TOP) && Shoulder.GetSensorCollection().GetIntegratedSensorPosition() < 225000) ||
+		(SelectedPosition!=TOP_SCORE && SelectedPosition!=AUTO_TOP && SelectedPosition!=-1 && Shoulder.GetSensorCollection().GetIntegratedSensorPosition() > ArmPoses[HP_PICKUP][SHOULDER_POSE])))
+		#else
+		((SelectedPosition==TOP_SCORE || SelectedPosition==AUTO_TOP) && ShoulderEncoder.Get() < 1000) ||
+		 (SelectedPosition!=TOP_SCORE && SelectedPosition!=AUTO_TOP && SelectedPosition!=-1 && ShoulderEncoder.Get() > ArmPoses[HP_PICKUP][SHOULDER_POSE])))
+		#endif
 		{
 			// WristTarget = ArmPoses[TRAVEL_POS][WRIST_POSE];
 			if(Wrist.GetSensorCollection().GetQuadraturePosition() > 2500) WristTarget = MAX_WRIST;
@@ -640,7 +669,7 @@ class Robot : public frc::TimedRobot {
 				InLast=1;
 			}
 			else if(OpController.GetPOV()==180 || dir_stick.GetRawButton(2) || (IsAutonomous() && (AutoIntake == INTAKE_EJECT))){//outake
-				intakePercent = -0.75;
+				intakePercent = -1.0;
 				InLast=0;
 			}
 			else
@@ -648,7 +677,11 @@ class Robot : public frc::TimedRobot {
 				if(SelectedPosition == TRAVEL_POS 
 				&& ObjectType == CONE
 				&& (fabs(WristTarget-Wrist.GetSensorCollection().GetPulseWidthPosition())>100) //Wrist position is close enough
+				#ifdef INTEGRATED_SHOULDER_ENCODER
 				&& (fabs(ShoulderTarget-Shoulder.GetSensorCollection().GetIntegratedSensorPosition())>2000) //shoulder position
+				#else
+				&& (fabs(ShoulderTarget-ShoulderEncoder.Get())>10)
+				#endif
 				)intakePercent = 0.75;
 
 				else if(InLast==1 || (IsAutonomous() && AutoIntake==INTAKE_HOLD)) intakePercent = 0.1; //0.2
@@ -1212,7 +1245,12 @@ class Robot : public frc::TimedRobot {
 			case ARM_AUTO:
 					SelectedPosition = AutoX;
 					ObjectType = AutoY;
-					if(fabs(ShoulderTarget-Shoulder.GetSensorCollection().GetIntegratedSensorPosition())<5000 
+					if(
+						#ifdef INTEGRATED_SHOULDER_ENCODER
+						   fabs(ShoulderTarget-Shoulder.GetSensorCollection().GetIntegratedSensorPosition())<5000 
+						#else
+							fabs(ShoulderTarget-ShoulderEncoder.Get())<10
+						#endif
 						&& fabs(WristTarget-Wrist.GetSensorCollection().GetQuadraturePosition())<250
 						|| AutoTime.Get().value()*1000 > AccSec){//arm_pos is almost equal to arm_target
 						AutoLine++;
@@ -1281,7 +1319,7 @@ class Robot : public frc::TimedRobot {
   TalonFX  Shoulder = {SHOULDER};
 //   #ifndef INTEGRATED_SHOULDER_ENCODER
   frc::Encoder ShoulderEncoder{0,1,false, frc::Encoder::EncodingType::k1X};
-  frc::PIDController ShoulderPID{0.25,0.0,0.0};
+  frc::PIDController ShoulderPID{0.1,0.0,0.0};
 //   #endif
 
 //   TalonSRX Intake = {INTAKE};
@@ -1435,7 +1473,7 @@ class Robot : public frc::TimedRobot {
 		FLDrive.Set(ControlMode::PercentOutput, 0.0);
 
 		// #ifndef INTEGRATED_SHOULDER_ENCODER
-		ShoulderEncoder.SetDistancePerPulse(4.0/256);
+		ShoulderEncoder.SetDistancePerPulse(4.0/256); //2.23
 		ShoulderEncoder.SetMaxPeriod(0.1_s);
 		ShoulderEncoder.SetMinRate(10);
 		// #endif
@@ -1453,7 +1491,8 @@ class Robot : public frc::TimedRobot {
 		Shoulder.Config_kI(0, 0.0, TIMEOUT);
 		Shoulder.Config_kD(0, 40.0, TIMEOUT); //100
 		Shoulder.Config_kF(0, 0.0,TIMEOUT);  //0.3
-		Shoulder.ConfigSupplyCurrentLimit(motorcontrol::SupplyCurrentLimitConfiguration{true,6,6,.2},TIMEOUT);
+		// Shoulder.ConfigSupplyCurrentLimit(motorcontrol::SupplyCurrentLimitConfiguration{true,6,6,.2},TIMEOUT);
+		Shoulder.ConfigSupplyCurrentLimit(motorcontrol::SupplyCurrentLimitConfiguration{true,3,3,.2},TIMEOUT);
 		Shoulder.SetNeutralMode(NeutralMode::Brake);
 		Shoulder.Set(ControlMode::PercentOutput, 0.0);
 		Shoulder.ConfigClosedloopRamp(0.25,TIMEOUT);
