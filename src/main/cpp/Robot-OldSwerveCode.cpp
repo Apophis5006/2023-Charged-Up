@@ -17,9 +17,11 @@
 #include <frc/smartdashboard/SendableChooser.h>
 #include <frc/smartdashboard/SmartDashboard.h>
 #include <frc/DigitalOutput.h>
+#include <frc/Encoder.h>
 #include "AHRS.h"
 
 // #define CAMERA
+#define INTEGRATED_SHOULDER_ENCODER
 
 #ifdef CAMERA
 #include <opencv2/core/core.hpp>
@@ -532,8 +534,13 @@ class Robot : public frc::TimedRobot {
 				SelectedPosition=-1;
 	    }
 		if(fabs(StickR)>0.15){
+				#ifdef INTEGRATED_SHOULDER_ENCODER
 				ShoulderTarget =Shoulder.GetSensorCollection().GetIntegratedSensorPosition() + StickR*16000;
 				SelectedPosition=-1;
+				#else
+				ShoulderTarget = ShoulderEncoder.Get() + StickR*50;
+				SelectedPosition=-1;
+				#endif
 		}	
 		
          
@@ -606,11 +613,20 @@ class Robot : public frc::TimedRobot {
 		if(HomeShoulder==1){
 			Shoulder.Set(ControlMode::PercentOutput,-0.2);
 			if(Shoulder.GetOutputCurrent()>=9.0){
+				#ifndef INTEGRATED_SHOULDER_ENCODER
+				ShoulderEncoder.Reset();
+				#endif
 				Shoulder.GetSensorCollection().SetIntegratedSensorPosition(0);
 				ShoulderTarget=MIN_SHOULDER;
 				HomeShoulder=2;
 			}
-		}else Shoulder.Set(ControlMode::MotionMagic,ShoulderTarget);
+		}else {
+			#ifndef INTEGRATED_SHOULDER_ENCODER
+			Shoulder.Set(ControlMode::Velocity,1023*(ShoulderPID.Calculate(ShoulderEncoder.Get(),ShoulderTarget)));
+			#else
+			Shoulder.Set(ControlMode::MotionMagic,ShoulderTarget);
+			#endif
+		}
 	}
 
 	int InLast = 0;
@@ -700,11 +716,14 @@ class Robot : public frc::TimedRobot {
 			// sprintf(str,"%s",frc::SmartDashboard::GetData("Auto Selector"));
 			// sprintf(str,"V:%4.2f",FLDrive.GetSelectedSensorVelocity());
 			// sprintf(str,"Dir%4.2f,Dist%4.2f",tempPrint,tempPrint2);
-			sprintf(str,"Cur:%4.2f",Intake.GetStatorCurrent());
+			// sprintf(str,"Cur:%4.2f",Intake.GetStatorCurrent());
+			sprintf(str,"SCT:%4.2f",1023*ShoulderPID.Calculate(ShoulderEncoder.Get(),ShoulderTarget));
 			frc::SmartDashboard::PutString("DB/String 8",str);
 			// sprintf(str,"ShCur:%4.2f",Shoulder.GetOutputCurrent());
-			sprintf(str,"PosX%4.2f,Y%4.2f",RobotX[IDX],RobotY[IDX]);
+			sprintf(str,"SE:%d,D:%4.2f",ShoulderEncoder.Get(),ShoulderEncoder.GetDistance());
+			// sprintf(str,"PosX%4.2f,Y%4.2f",RobotX[IDX],RobotY[IDX]);
 			frc::SmartDashboard::PutString("DB/String 9",str);
+
 
 			// double Kp = frc::SmartDashboard::GetNumber("DB/Slider 0",1.0);
 			// double Ki = frc::SmartDashboard::GetNumber("DB/Slider 1",0.0);
@@ -1260,6 +1279,10 @@ class Robot : public frc::TimedRobot {
   TalonSRX Wrist = {WRIST};
   TalonSRX Intake = {INTAKE};
   TalonFX  Shoulder = {SHOULDER};
+//   #ifndef INTEGRATED_SHOULDER_ENCODER
+  frc::Encoder ShoulderEncoder{0,1,false, frc::Encoder::EncodingType::k1X};
+  frc::PIDController ShoulderPID{0.25,0.0,0.0};
+//   #endif
 
 //   TalonSRX Intake = {INTAKE};
   frc::DigitalOutput LedIn1{8};
@@ -1410,6 +1433,12 @@ class Robot : public frc::TimedRobot {
 		FLDrive.Config_kF(0, 1.0, TIMEOUT);
 		FLDrive.SetNeutralMode(NeutralMode::Coast);
 		FLDrive.Set(ControlMode::PercentOutput, 0.0);
+
+		// #ifndef INTEGRATED_SHOULDER_ENCODER
+		ShoulderEncoder.SetDistancePerPulse(4.0/256);
+		ShoulderEncoder.SetMaxPeriod(0.1_s);
+		ShoulderEncoder.SetMinRate(10);
+		// #endif
 
 		Shoulder.GetSensorCollection().SetIntegratedSensorPosition(0);
         Shoulder.ConfigSelectedFeedbackSensor(FeedbackDevice::IntegratedSensor, 0, NOTIMEOUT);	
