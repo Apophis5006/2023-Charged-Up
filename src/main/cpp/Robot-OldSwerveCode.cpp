@@ -91,7 +91,7 @@ int BALANCE_AutoArray[NUMAUTOLINES][8]={
 			{WAIT_AUTO,  500,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_EJECT},
 			{ARM_AUTO,   2000,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_EJECT},
 			{WAIT_AUTO,  250,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_EJECT},
-			{BALANCE,	 500,		0,		15,		0,		 200,		   0,  INTAKE_EJECT}, //was 25 pwr
+			{BALANCE,	 500,		0,		20,		0,		 200,		   0,  INTAKE_EJECT}, //was 25 pwr
 			{STOP,       0,         0,      0,      0,       0,        0,            0},	//STOP
 };
 
@@ -111,11 +111,11 @@ int VL_AutoArray[NUMAUTOLINES][8]={
 			{MOVE,	 	 250,		0,		30,		0,		 150,	   0,  INTAKE_IN},
 			{ARM_AUTO,   3000,		0,		0,AUTO_FLOOR,	 CUBE,		   0,  INTAKE_IN},
 			{MOVE,	 	 10,	    5,		15,		-19,	 210,	   0,  INTAKE_IN}, //-16
-			{ARM_AUTO,   3000,		0,		0,TRAVEL_POS,	 CUBE,		   0,  INTAKE_HOLD},
-			{MOVE,	 	 250,		5,		30,	  -22,		 140,		  180,  INTAKE_HOLD},
-			{ARM_AUTO,   3000,		0,		0,Auto_LOW_SCORE,	 CUBE,		   0,  INTAKE_HOLD},
-			{MOVE,	 	 250,		5,		30,	  -22,		 -22,		  180,  INTAKE_HOLD},
-			{STOP,       0,         0,      0,      0,       0,        0,       INTAKE_EJECT},	//STOP
+			// {ARM_AUTO,   3000,		0,		0,TRAVEL_POS,	 CUBE,		   0,  INTAKE_HOLD},
+			// {MOVE,	 	 250,		5,		30,	  -22,		 140,		  180,  INTAKE_HOLD},
+			// {ARM_AUTO,   3000,		0,		0,Auto_LOW_SCORE,	 CUBE,		   0,  INTAKE_HOLD},
+			// {MOVE,	 	 250,		5,		30,	  -22,		 -22,		  180,  INTAKE_HOLD},
+			{STOP,       0,         0,      0,      0,       0,        0,       INTAKE_HOLD},	//STOP
 }; 
 
 const std::string VR_SELECTION_STRING = "Veer Right";
@@ -136,11 +136,28 @@ int VR_AutoArray[NUMAUTOLINES][8]={
 			{ARM_AUTO,   3000,		0,		0,AUTO_FLOOR,	 CUBE,		   0,  INTAKE_IN},
 			{MOVE,	 	 10,	    5,		20,		8,	 210,	   0,  INTAKE_IN},
 			{ARM_AUTO,   3000,		0,		0,TRAVEL_POS,	 CUBE,		   0,  INTAKE_HOLD},
-			{MOVE,	 	 250,		5,		40,	  2,		 140,		  180,  INTAKE_HOLD},
-			{ARM_AUTO,   3000,		0,		0,Auto_LOW_SCORE,	 CUBE,		   0,  INTAKE_HOLD},
-			{MOVE,	 	 250,		5,		40,	  -22,		 -35,		  180,  INTAKE_HOLD},
-			{STOP,       0,         0,      0,      0,       0,        0,       INTAKE_EJECT},	//STOP
+			// {MOVE,	 	 250,		5,		40,	  2,		 140,		  180,  INTAKE_HOLD},
+			// {ARM_AUTO,   3000,		0,		0,Auto_LOW_SCORE,	 CUBE,		   0,  INTAKE_HOLD},
+			// {MOVE,	 	 250,		5,		40,	  -22,		 -35,		  180,  INTAKE_HOLD},
+			{STOP,       0,         0,      0,      0,       0,        0,       INTAKE_HOLD},	//STOP
 }; 
+
+const std::string HIGH_SCORE_SELECTION_STRING = "High Score Only";
+int HIGH_SCORE_AutoArray[NUMAUTOLINES][8]={
+	//CMD,   Acc mSec,Dec Inches, MaxPwr,TargetX, TargetY, Orientation Deg,IntakeState
+			{START,      0,         0,      0,      0,       0,        0,  INTAKE_IN}, //Start at midfield location
+			// {ARM_AUTO,   3000,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_IN},
+			// {WAIT_AUTO,	 1000,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_IN},
+			{ARM_AUTO,   2000,		0,		0,HP_PICKUP,	 0,		   0,  INTAKE_IN},
+			{WAIT_AUTO,	 500,		0,		0,HP_PICKUP,	 0,		   0,  INTAKE_IN},
+			{ARM_AUTO,   2000,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_HOLD},
+			{WAIT_AUTO,	 1000,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_HOLD},
+			{ARM_AUTO,   500,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_EJECT},
+			{WAIT_AUTO,  500,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_EJECT},
+			{ARM_AUTO,   2000,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_EJECT},
+			{WAIT_AUTO,  250,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_EJECT},
+			{STOP,			0,		0,		0,			0,	 0,		   0,  INTAKE_EJECT}
+};
 
 const std::string CUBE_PICKUP_TEST_SELECTION_STRING = "Cube Pickup Test";
 int CUBE_PICKUP_TEST_AutoArray[NUMAUTOLINES][8]={
@@ -270,6 +287,7 @@ class Robot : public frc::TimedRobot {
 			else if(selectedAuto == VR_SELECTION_STRING) AutoArray=VR_AutoArray;
 			else if(selectedAuto == CUBE_PICKUP_TEST_SELECTION_STRING) AutoArray=CUBE_PICKUP_TEST_AutoArray;
 			else if(selectedAuto == MOVE_TEST_SELECTION_STRING) AutoArray=MOVE_TEST_AutoArray;
+			else if(selectedAuto == HIGH_SCORE_SELECTION_STRING) AutoArray=HIGH_SCORE_AutoArray;
 			else AutoArray=NO_MOVE_AutoArray;
 			
 	   }
@@ -431,9 +449,9 @@ class Robot : public frc::TimedRobot {
 		{565,6021,456,5046},// HP_PICKUP
 		{11,3032,132,4120}, //FLOOR_PICKUP
 		{443,5216,376,4366},// MID_SCORE
-		{1049, 2237,442,4052},// TOP_SCORE		
+		{1049, 2100,442,4052},// TOP_SCORE		
 		{209, 4955,209, 4955},//CONE_VERTICAL
-		{136,2073,136,2073},//`SHUTE_PICKUP //`Needs to be redone
+		{73,1621,73,1921},//`SHUTE_PICKUP //`Needs to be redone
 		//Auto
 		{46333,3586,132,4120}, //`FLOOR_PICKUP
 		{1049, 2237,442,4052}, //`TOP_SCORE
@@ -651,7 +669,7 @@ class Robot : public frc::TimedRobot {
 			}
 		}else {
 			#ifndef INTEGRATED_SHOULDER_ENCODER
-			Shoulder.Set(ControlMode::Velocity,1023*(ShoulderPID.Calculate(ShoulderEncoder.Get(),ShoulderTarget)));
+			Shoulder.Set(ControlMode::Velocity,900*(ShoulderPID.Calculate(ShoulderEncoder.Get(),ShoulderTarget)));
 			#else
 			Shoulder.Set(ControlMode::MotionMagic,ShoulderTarget);
 			#endif
@@ -1319,7 +1337,7 @@ class Robot : public frc::TimedRobot {
   TalonFX  Shoulder = {SHOULDER};
 //   #ifndef INTEGRATED_SHOULDER_ENCODER
   frc::Encoder ShoulderEncoder{0,1,false, frc::Encoder::EncodingType::k1X};
-  frc::PIDController ShoulderPID{0.1,0.0,0.0};
+  frc::PIDController ShoulderPID{0.05,0.0,0.003}; //0.006 D
 //   #endif
 
 //   TalonSRX Intake = {INTAKE};
@@ -1487,9 +1505,9 @@ class Robot : public frc::TimedRobot {
 	 	Shoulder.ConfigPeakOutputReverse(-12.0f, TIMEOUT);
 		// Shoulder.ConfigSupplyCurrentLimit(motorcontrol::SupplyCurrentLimitConfiguration{})
 		Shoulder.SelectProfileSlot(0, 0);
-		Shoulder.Config_kP(0, 0.4, TIMEOUT);
+		Shoulder.Config_kP(0, 0.2, TIMEOUT);
 		Shoulder.Config_kI(0, 0.0, TIMEOUT);
-		Shoulder.Config_kD(0, 40.0, TIMEOUT); //100
+		Shoulder.Config_kD(0, 30.0, TIMEOUT); //100
 		Shoulder.Config_kF(0, 0.0,TIMEOUT);  //0.3
 		// Shoulder.ConfigSupplyCurrentLimit(motorcontrol::SupplyCurrentLimitConfiguration{true,6,6,.2},TIMEOUT);
 		Shoulder.ConfigSupplyCurrentLimit(motorcontrol::SupplyCurrentLimitConfiguration{true,3,3,.2},TIMEOUT);
@@ -1548,6 +1566,7 @@ class Robot : public frc::TimedRobot {
 		AutoChooser.AddOption(BALANCE_SELECTION_STRING,BALANCE_SELECTION_STRING);
   		AutoChooser.AddOption(VL_SELECTION_STRING,VL_SELECTION_STRING);
 		AutoChooser.AddOption(VR_SELECTION_STRING,VR_SELECTION_STRING);
+		AutoChooser.AddOption(HIGH_SCORE_SELECTION_STRING,HIGH_SCORE_SELECTION_STRING);
 		AutoChooser.AddOption(CUBE_PICKUP_TEST_SELECTION_STRING,CUBE_PICKUP_TEST_SELECTION_STRING);
 		AutoChooser.AddOption(MOVE_TEST_SELECTION_STRING,MOVE_TEST_SELECTION_STRING);
   		frc::SmartDashboard::PutData("Auto Modes", &AutoChooser);
