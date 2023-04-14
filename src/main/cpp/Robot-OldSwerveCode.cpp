@@ -18,6 +18,7 @@
 #include <frc/smartdashboard/SmartDashboard.h>
 #include <frc/DigitalOutput.h>
 #include <frc/Encoder.h>
+#include <networktables/NetworkTable.h>
 #include "AHRS.h"
 
 // #define CAMERA
@@ -47,6 +48,9 @@ int (*AutoArray)[8];
 
 #define IDXX 7 /* x offset from 0,0 for index wheel FL=7, FR=17, RL=7, RR=17 */
 #define IDXY -17 /*y offset from 0,0 for index wheel FL=-7, FR=-7, RL=-17, RR=-17 */ 
+
+#define HIGH_SCORE_PIPELINE 1
+#define CUBE_PIPELINE 3
 
 //Flag so we don't reinit Gyros etc when switching from Auto to Telop
 int RobotInitialized=0;
@@ -761,8 +765,9 @@ class Robot : public frc::TimedRobot {
 			sprintf(str,"FRC%4.2f",FRDrive.GetSelectedSensorPosition());
 		    frc::SmartDashboard::PutString("DB/String 5", str);
 			// sprintf(str, "StKL%f",OpController.GetLeftY());
-			sprintf(str,"FRZ%4.2f",FRZero);
-		    frc::SmartDashboard::PutString("DB/String 6", str);
+			// sprintf(str,"FRZ%4.2f",FRZero);
+			sprintf(str,"tx:%3.2f",limelight->GetNumber("tx",0.0))
+;		    frc::SmartDashboard::PutString("DB/String 6", str);
 			// sprintf(str,"Pitch:%4.2f",RobotPitch);
 			// sprintf(str,"%s",frc::SmartDashboard::GetData("Auto Selector"));
 			// sprintf(str,"V:%4.2f",FLDrive.GetSelectedSensorVelocity());
@@ -849,17 +854,35 @@ class Robot : public frc::TimedRobot {
 
 			if (fabs(SWRVY)<=0.05) SWRVY=0.0;
 			if (fabs(SWRVX)<=0.05) SWRVX=0.0;
-			if(rot_stick.GetTrigger()) FieldCentric=0;
-			else FieldCentric=1;	  
+			// if(rot_stick.GetTrigger()) FieldCentric=0;
+			// else FieldCentric=1;	  
+			FieldCentric=1;
 		}
 
+
+
 		if(rot_stick.GetRawButtonPressed(4)){ //auto face pickup location
-			if(fmod(fabs(RobotAngle),360.0) > 90.0 && fmod(fabs(RobotAngle),360.0) < 270.0) AutoRotatePID.SetSetpoint(180.0);
-			else if(fmod(fabs(RobotAngle),360.0) < 90.0 || fmod(fabs(RobotAngle),360.0) > 270.0) AutoRotatePID.SetSetpoint(0.0); //move to init
+			if(fmod(fabs(RobotAngle),360.0) >= 90.0 && fmod(fabs(RobotAngle),360.0) < 270.0) AutoRotatePID.SetSetpoint(180.0);
+			else if(fmod(fabs(RobotAngle),360.0) < 90.0 || fmod(fabs(RobotAngle),360.0) >= 270.0) AutoRotatePID.SetSetpoint(0.0); //move to init
 		}
 		if(rot_stick.GetRawButton(4)) SWRVZ = AutoRotatePID.Calculate(fmod(RobotAngle,360))/180;
 		//`button for 180
 		
+
+		if(rot_stick.GetTrigger()){
+			// if(SelectedPosition==FLOOR_PICKUP){
+				limelight->PutNumber("pipeline",CUBE_PIPELINE);	
+				double tx = limelight->GetNumber("tx",0.0);
+				SteerPID.SetSetpoint(0.0);
+				SWRVZ = SteerPID.Calculate(-tx);
+			// }else if(SelectedPosition==TOP_SCORE){
+			// 	limelight->PutNumber("pipeline",HIGH_SCORE_PIPELINE);
+			// 	double tx = limelight->GetNumber("tx",0.0);
+			// 	AlignPID.SetSetpoint(0.0);
+			// 	SWRVX = AlignPID.Calculate(tx);
+			// }
+			
+		}
 
 		//Button 6 on left joystick resets the gyro to 0 degrees
 		if(dir_stick.GetRawButton(9))
@@ -1353,6 +1376,12 @@ class Robot : public frc::TimedRobot {
   std::string m_autoSelected;
 
 
+
+  std::shared_ptr<nt::NetworkTable> limelight;
+  frc::PIDController SteerPID{0.03,0.0,0.0};
+  frc::PIDController AlignPID{0.1,0.0,0.0};
+
+
   void RobotInit() {
 
 		RobotInitialized++;
@@ -1570,6 +1599,8 @@ class Robot : public frc::TimedRobot {
 		AutoChooser.AddOption(CUBE_PICKUP_TEST_SELECTION_STRING,CUBE_PICKUP_TEST_SELECTION_STRING);
 		AutoChooser.AddOption(MOVE_TEST_SELECTION_STRING,MOVE_TEST_SELECTION_STRING);
   		frc::SmartDashboard::PutData("Auto Modes", &AutoChooser);
+
+		limelight = nt::NetworkTableInstance::GetDefault().GetTable("limelight");
 
 		#ifdef CAMERA
 		frc::CameraServer::StartAutomaticCapture();
