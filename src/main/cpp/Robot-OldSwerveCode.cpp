@@ -450,8 +450,8 @@ class Robot : public frc::TimedRobot {
 	long ArmPoses[12][4] = {
 
 	//	cone Sholder Position	cone Wrist Position, cube shoulder, cube wrist
-		{30,MIN_WRIST,30,MIN_WRIST}, //TRAVEL_POS		
-		{565,6021,456,5046},// HP_PICKUP
+		{20,MIN_WRIST,20,MIN_WRIST}, //TRAVEL_POS		
+		{581,6021,456,5046},// HP_PICKUP
 		{11,3032,132,4120}, //FLOOR_PICKUP
 		{443,5216,376,4366},// MID_SCORE
 		{1049, 2100,442,4052},// TOP_SCORE		
@@ -1364,7 +1364,7 @@ class Robot : public frc::TimedRobot {
   TalonFX  Shoulder = {SHOULDER};
 //   #ifndef INTEGRATED_SHOULDER_ENCODER
   frc::Encoder ShoulderEncoder{0,1,false, frc::Encoder::EncodingType::k1X};
-  frc::PIDController ShoulderPID{0.05,0.0,0.003}; //0.006 D
+  frc::PIDController ShoulderPID{0.07,0.0,-0.003}; //0.006 D 
 //   #endif
 
 //   TalonSRX Intake = {INTAKE};
