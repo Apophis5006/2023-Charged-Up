@@ -240,7 +240,7 @@ int FieldCentric=0;   //1= feild centric driving
 float RobotAngle=0.0; //angle from Gyro
 float RobotPitch=0.0; //pitch from Gyro, used to balance robot
 float PitchOffset; //offset of pitch to set zero on init
-frc2::PIDController AutoRotatePID{1.1,0,0.0}; //PID controller for wall snapping
+frc2::PIDController AutoRotatePID{4.0,0.02,0.64}; //PID controller for wall snapping
 int IntakeState=0;
 int UpdateCount=0;    //counter to slow screen update so it does not take too many CPU cycles
 int SelectedPosition = -1;
@@ -759,7 +759,7 @@ class Robot : public frc::TimedRobot {
 		    sprintf(str,"Wrst a%d,t%d",Wrist.GetSensorCollection().GetQuadraturePosition(),WristTarget);
 			frc::SmartDashboard::PutString("DB/String 3", str);
 			// sprintf(str, "gyro= %f",Gyro);
-			sprintf(str, "ObjT %d,Pos %d,Gyro %4.2f",ObjectType,SelectedPosition,RobotAngle);
+			sprintf(str, "ObjT %d,Gyro %6.0f",SelectedPosition,RobotAngle);
 		    frc::SmartDashboard::PutString("DB/String 4", str);
 			// sprintf(str, "StKR%f",OpController.GetRightY());
 			sprintf(str,"FRC%4.2f",FRDrive.GetSelectedSensorPosition());
@@ -861,26 +861,26 @@ class Robot : public frc::TimedRobot {
 
 
 
-		if(rot_stick.GetRawButtonPressed(4)){ //auto face pickup location
-			if(fmod(fabs(RobotAngle),360.0) >= 90.0 && fmod(fabs(RobotAngle),360.0) < 270.0) AutoRotatePID.SetSetpoint(180.0);
-			else if(fmod(fabs(RobotAngle),360.0) < 90.0 || fmod(fabs(RobotAngle),360.0) >= 270.0) AutoRotatePID.SetSetpoint(0.0); //move to init
+		if(rot_stick.GetRawButton(4)){ //auto face pickup location
+			if(fabs(fmod(RobotAngle,360.0)) < 90) AutoRotatePID.SetSetpoint(0.0);
+			else if(fmod(RobotAngle,360.0) < -90) AutoRotatePID.SetSetpoint(-180.0);
+			else if(fmod(RobotAngle,360.0) >  90) AutoRotatePID.SetSetpoint(180.0);
+			SWRVZ = AutoRotatePID.Calculate(fmod(RobotAngle,360.0))/180;
 		}
-		if(rot_stick.GetRawButton(4)) SWRVZ = AutoRotatePID.Calculate(fmod(RobotAngle,360))/180;
-		//`button for 180
 		
 
 		if(rot_stick.GetTrigger()){
-			// if(SelectedPosition==FLOOR_PICKUP){
+			if(SelectedPosition==FLOOR_PICKUP){
 				limelight->PutNumber("pipeline",CUBE_PIPELINE);	
 				double tx = limelight->GetNumber("tx",0.0);
 				SteerPID.SetSetpoint(0.0);
 				SWRVZ = SteerPID.Calculate(-tx);
-			// }else if(SelectedPosition==TOP_SCORE){
-			// 	limelight->PutNumber("pipeline",HIGH_SCORE_PIPELINE);
+			}else if(SelectedPosition==TOP_SCORE){
+			 	limelight->PutNumber("pipeline",HIGH_SCORE_PIPELINE);
 			// 	double tx = limelight->GetNumber("tx",0.0);
 			// 	AlignPID.SetSetpoint(0.0);
 			// 	SWRVX = AlignPID.Calculate(tx);
-			// }
+			}
 			
 		}
 
