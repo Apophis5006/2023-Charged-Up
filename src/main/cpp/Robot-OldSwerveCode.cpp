@@ -49,7 +49,8 @@ int (*AutoArray)[8];
 #define IDXX 7 /* x offset from 0,0 for index wheel FL=7, FR=17, RL=7, RR=17 */
 #define IDXY -17 /*y offset from 0,0 for index wheel FL=-7, FR=-7, RL=-17, RR=-17 */ 
 
-#define HIGH_SCORE_PIPELINE 1
+#define HIGH_SCORE_PIPELINE 0
+#define CONE_PIPELINE 1
 #define CUBE_PIPELINE 3
 
 //Flag so we don't reinit Gyros etc when switching from Auto to Telop
@@ -854,8 +855,8 @@ class Robot : public frc::TimedRobot {
 
 			if (fabs(SWRVY)<=0.05) SWRVY=0.0;
 			if (fabs(SWRVX)<=0.05) SWRVX=0.0;
-			// if(rot_stick.GetTrigger()) FieldCentric=0;
-			// else FieldCentric=1;	  
+			if(rot_stick.GetTrigger()) FieldCentric=0;
+			else FieldCentric=1;	  
 			FieldCentric=1;
 		}
 
@@ -871,15 +872,18 @@ class Robot : public frc::TimedRobot {
 
 		if(rot_stick.GetTrigger()){
 			if(SelectedPosition==FLOOR_PICKUP){
-				limelight->PutNumber("pipeline",CUBE_PIPELINE);	
+				if(ObjectType==CUBE) limelight->PutNumber("pipeline",CUBE_PIPELINE);
+				else if(ObjectType==CONE) limelight->PutNumber("pipeline",CONE_PIPELINE);	
 				double tx = limelight->GetNumber("tx",0.0);
 				SteerPID.SetSetpoint(0.0);
 				SWRVZ = SteerPID.Calculate(-tx);
 			}else if(SelectedPosition==TOP_SCORE){
 			 	limelight->PutNumber("pipeline",HIGH_SCORE_PIPELINE);
-			// 	double tx = limelight->GetNumber("tx",0.0);
-			// 	AlignPID.SetSetpoint(0.0);
-			// 	SWRVX = AlignPID.Calculate(tx);
+				double tx = limelight->GetNumber("tx",0.0);
+				AlignPID.SetSetpoint(0.0);
+				double calc = -AlignPID.Calculate(tx);
+				if(calc < 0.05 && calc > -0.05) calc = 0.05 * calc/fabs(calc);
+				SWRVX = -AlignPID.Calculate(tx);
 			}
 			
 		}
@@ -1378,8 +1382,8 @@ class Robot : public frc::TimedRobot {
 
 
   std::shared_ptr<nt::NetworkTable> limelight;
-  frc::PIDController SteerPID{0.03,0.0,0.0};
-  frc::PIDController AlignPID{0.1,0.0,0.0};
+  frc::PIDController SteerPID{0.03,0.0,0.005};
+  frc::PIDController AlignPID{0.05,0.0,0.0};
 
 
   void RobotInit() {
