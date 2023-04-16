@@ -41,7 +41,7 @@
 #define ARM_AUTO 13
 #define BALANCE 14
 #define WAIT_AUTO 15
-#define MOVE_TIMED 16
+#define PICKUP_AUTO 16
 
 #define NUMAUTOLINES 30
 int (*AutoArray)[8];
@@ -80,6 +80,7 @@ int ObjectType = CONE;
 #define INTAKE_EJECT 2
 #define INTAKE_HOLD 3
 int AutoIntake = INTAKE_IDLE;
+int AutoFaceObject = 0; //for using limelight with autonomous
 
 // autonomous barrel race  RED 1
 #define BRPW 70
@@ -169,11 +170,14 @@ int CUBE_PICKUP_TEST_AutoArray[NUMAUTOLINES][8]={
     //CMD,   Acc mSec,Dec Inches, MaxPwr,TargetX, TargetY, Orientation Deg,IntakeState
 	{START,      0,         0,      0,      0,       0,        0,            0},
 	{ARM_AUTO,   3000,		0,		0,TRAVEL_POS,	 CUBE,		   0,  INTAKE_HOLD},
-	{ARM_AUTO,   1000,		0,		0,Auto_LOW_SCORE,	 CUBE,		   0,  INTAKE_EJECT},
-	// {MOVE,	 	 10,	    5,		20,		8,	 50,	   0,  INTAKE_IN},
-	// {ARM_AUTO,   3000,		0,		0,TRAVEL_POS,	 CUBE,		   0,  INTAKE_HOLD},
-	{STOP,       0,         0,      0,      0,       0,        0, INTAKE_EJECT},	//STOP
+	{ARM_AUTO,   1000,		0,		0,AUTO_FLOOR,	 CUBE,		   0,  INTAKE_IN},
+	{WAIT_AUTO,  750,		0,		0,AUTO_FLOOR,	 0,		   0,  INTAKE_IN},
+	{PICKUP_AUTO, 10,	    5,		20,		8,	 90,	   0,  INTAKE_IN},
+	// {PICKUP_AUTO,1000,		0,		0,		0,	 	 5,		   0,  INTAKE_IN},
+	{STOP,       0,         0,      0,      0,       0,        0, INTAKE_HOLD},	//STOP
 };
+
+
 
 const std::string MOVE_TEST_SELECTION_STRING = "Move Test";
 int MOVE_TEST_AutoArray[NUMAUTOLINES][8]={
@@ -772,9 +776,9 @@ class Robot : public frc::TimedRobot {
 			// sprintf(str,"Pitch:%4.2f",RobotPitch);
 			// sprintf(str,"%s",frc::SmartDashboard::GetData("Auto Selector"));
 			// sprintf(str,"V:%4.2f",FLDrive.GetSelectedSensorVelocity());
-			// sprintf(str,"Dir%4.2f,Dist%4.2f",tempPrint,tempPrint2);
+			sprintf(str,"Tx%4.2f",tempPrint);
 			// sprintf(str,"Cur:%4.2f",Intake.GetStatorCurrent());
-			sprintf(str,"SCT:%4.2f",1023*ShoulderPID.Calculate(ShoulderEncoder.Get(),ShoulderTarget));
+			// sprintf(str,"SCT:%4.2f",1023*ShoulderPID.Calculate(ShoulderEncoder.Get(),ShoulderTarget));
 			frc::SmartDashboard::PutString("DB/String 8",str);
 			// sprintf(str,"ShCur:%4.2f",Shoulder.GetOutputCurrent());
 			sprintf(str,"SE:%d,D:%4.2f",ShoulderEncoder.Get(),ShoulderEncoder.GetDistance());
@@ -838,8 +842,9 @@ class Robot : public frc::TimedRobot {
 	void SwerveControl(void){
 		//AutoPilot?
 	    if(IsAutonomousEnabled()){
-			FieldCentric=1; //; //Auto opertes in field centric mode //0
-		    SWRVY=AutoDriveY;
+			if(AutoFaceObject) FieldCentric=0; //; //Auto opertes in field centric mode //0
+		    else FieldCentric=1;
+			SWRVY=AutoDriveY;
 			SWRVX=AutoDriveX; 
 		    SWRVZ=AutoDriveZ;
 			if(SWRVZ>1.0)SWRVZ=1.0;
@@ -870,8 +875,8 @@ class Robot : public frc::TimedRobot {
 		}
 		
 
-		if(rot_stick.GetTrigger()){
-			if(SelectedPosition==FLOOR_PICKUP){
+		if(rot_stick.GetTrigger() || (IsAutonomous() && AutoFaceObject)){
+			if(SelectedPosition==FLOOR_PICKUP || SelectedPosition==AUTO_FLOOR){
 				if(ObjectType==CUBE) limelight->PutNumber("pipeline",CUBE_PIPELINE);
 				else if(ObjectType==CONE) limelight->PutNumber("pipeline",CONE_PIPELINE);	
 				double tx = limelight->GetNumber("tx",0.0);
@@ -980,8 +985,9 @@ class Robot : public frc::TimedRobot {
     	ActDir[RR]=fmod(((RRSteer.GetSensorCollection().GetPulseWidthPosition()-RRZero)/11.38),360.0);
 
 		//If rotational power is low, just don't rotate
-        if(IsAutonomous()){
+        if(IsAutonomous() && !AutoFaceObject){
                //SWRVZ=pow(3*SWRVZ,3);
+			   
 		}else{
 
 			if (fabs(SWRVZ)<0.05){ //rot_stick deadzone
@@ -1079,8 +1085,8 @@ class Robot : public frc::TimedRobot {
 			Dir=ActDir[i]+RobotAngle;
 			Dir=fmod(Dir,360.0);
 			if(i==IDX){
-				tempPrint = Dir;
-				tempPrint2 = NewPosition[IDX];
+				// tempPrint = Dir;
+				// tempPrint2 = NewPosition[IDX];
 			}
 			RobotX[i]-=Dist*sin((Dir*PI)/180.0);	
 			RobotY[i]-=Dist*cos((Dir*PI)/180.0);
@@ -1287,6 +1293,42 @@ class Robot : public frc::TimedRobot {
 						   FirstPass=1;
 						}
 						break;
+			case PICKUP_AUTO:
+					{
+						if(FirstPass){
+							FirstPass=0;
+							if(fabs(Y)>fabs(X)){
+								Travel=Y;
+								UseYTravel=1;
+							}else{
+                                Travel=X;
+								UseYTravel=0;
+							} 
+							AutoFaceObject = 1;
+						}
+
+						
+						double tx = limelight->GetNumber("tx",0.0);
+
+						tempPrint = tx;
+
+						if(fabs(tx)<5){
+							AutoDriveY=0.2;
+						}
+
+
+						if((UseYTravel&&(Y*Travel<0))||((!UseYTravel)&&(X*Travel<0))){
+                           RemainingInches=0;
+						}
+						if(RemainingInches<(Speed/5)){ //|| fabs(tx)==0.0){
+							AutoDriveY=0;
+							AutoFaceObject=0;
+							AutoLine++;
+							AutoTime.Reset();
+							FirstPass=1;
+						}
+					}
+						break;
 			case ARM_AUTO:
 					SelectedPosition = AutoX;
 					ObjectType = AutoY;
@@ -1303,11 +1345,6 @@ class Robot : public frc::TimedRobot {
 						FirstPass=1;
 					}
 					break;
-			case MOVE_TIMED:
-				AutoDriveX=0.0;
-				AutoDriveY=0.1;
-				AutoDriveZ=0.0;
-				AccSec=2000;
 			case WAIT_AUTO:
 				if(AutoTime.Get().value() * 1000 > AccSec){
 						AutoLine++;
