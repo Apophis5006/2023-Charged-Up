@@ -138,10 +138,12 @@ int VR_AutoArray[NUMAUTOLINES][8]={
 			{WAIT_AUTO,  500,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_EJECT},
 			{ARM_AUTO,   2000,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_EJECT},
 			{WAIT_AUTO,  250,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_EJECT},
-			{MOVE,	 	 250,		0,		30,		0,		 130,	   0,  INTAKE_IN},
+			{MOVE,	 	 250,		0,		30,		0,		 80,	   0,  INTAKE_IN},
 			{ARM_AUTO,   3000,		0,		0,AUTO_FLOOR,	 CUBE,		   0,  INTAKE_IN},
-			{MOVE,	 	 10,	    5,		20,		8,	 210,	   0,  INTAKE_IN},
+			{WAIT_AUTO,  500,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_EJECT},
+			{PICKUP_AUTO, 10,	    5,		20,		   8,   210 ,	   	   0,  INTAKE_IN},
 			{ARM_AUTO,   3000,		0,		0,TRAVEL_POS,	 CUBE,		   0,  INTAKE_HOLD},
+
 			// {MOVE,	 	 250,		5,		40,	  2,		 140,		  180,  INTAKE_HOLD},
 			// {ARM_AUTO,   3000,		0,		0,Auto_LOW_SCORE,	 CUBE,		   0,  INTAKE_HOLD},
 			// {MOVE,	 	 250,		5,		40,	  -22,		 -35,		  180,  INTAKE_HOLD},
@@ -1303,7 +1305,7 @@ class Robot : public frc::TimedRobot {
 							}else{
                                 Travel=X;
 								UseYTravel=0;
-							} 
+							}
 							AutoFaceObject = 1;
 						}
 
@@ -1319,7 +1321,7 @@ class Robot : public frc::TimedRobot {
 
 						if((UseYTravel&&(Y*Travel<0))||((!UseYTravel)&&(X*Travel<0))){
                            RemainingInches=0;
-						}
+						} 
 						if(RemainingInches<(Speed/5)){ //|| fabs(tx)==0.0){
 							AutoDriveY=0;
 							AutoFaceObject=0;
