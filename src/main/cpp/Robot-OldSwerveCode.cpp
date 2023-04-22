@@ -97,12 +97,16 @@ int BALANCE_AutoArray[NUMAUTOLINES][8]={
 			{ARM_AUTO,   2000,		0,		0,HP_PICKUP,	 0,		   0,  INTAKE_IN},
 			{WAIT_AUTO,	 500,		0,		0,HP_PICKUP,	 0,		   0,  INTAKE_IN},
 			{ARM_AUTO,   2000,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_HOLD},
-			{TIMED_MOVE, 1000,		0,			0,		 0,	 	10,		   0,  INTAKE_HOLD},
+			{TIMED_MOVE, 1000,		0,		0,		 0,	  -20,		   0,  INTAKE_HOLD},
+			{WAIT_AUTO,  5000,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_EJECT},
+			{TIMED_MOVE, 1000,		0,		0,		 0,	    0,		   0,  INTAKE_HOLD},
 			{ARM_AUTO,   500,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_EJECT},
 			{WAIT_AUTO,  500,		0,		0,AUTO_TOP,	 CONE,		   0,  INTAKE_EJECT},
 			{ARM_AUTO,   2000,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_EJECT},
 			{WAIT_AUTO,  250,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_EJECT},
-			{BALANCE,	 500,		0,		20,		0,		 200,	   0,  INTAKE_EJECT}, //was 25 pwr
+			{MOVE,	 	 250,		0,		30,		0,		 165,	   0,  INTAKE_IN},
+			// {WAIT_AUTO,  250,		0,		0,TRAVEL_POS,	 0,		   0,  INTAKE_EJECT},
+			{BALANCE,	 500,		0,		20,		0,		 -200,	   0,  INTAKE_EJECT}, //was 25 pwr
 			{STOP,       0,         0,      0,      0,       0,        0,            0},	//STOP
 };
 
@@ -1206,12 +1210,14 @@ class Robot : public frc::TimedRobot {
 		      
  		            break;
 			case BALANCE: 
-						                        
+						{                 
 						fctr=fabs(X)+fabs(Y);
 						if(fctr==0.0) fctr=1.0;
 						
+						int sign = AutoX/fabs(AutoX);
+
 						AutoDriveX=0.0; //(double)((RobotPitch/15)*20)/100.0;
-						if(RobotPitch>15.0) RampHit=1;
+						if(fabs(RobotPitch)>15.0) RampHit=1;
 						if(RampHit){
                             //AutoDriveY=(double)((RobotPitch/15.0)*10.0)/100.0;
 							if(RobotPitch>15.0)RobotPitch=15.0;
@@ -1219,11 +1225,11 @@ class Robot : public frc::TimedRobot {
 							// Y=pow((RobotPitch/15.0),3);
 							Y=pow(RobotPitch/15.0,5);
 							// Y=sin(RobotPitch/15.0);
-							AutoDriveY=(double)((Y)*10.0)/100.0;
+							AutoDriveY=(double)((Y)*30.0)/100.0;
 						    
 							if(AutoDriveY<0.07 && AutoDriveY > -0.07) AutoDriveY= 0.07 * (AutoDriveY/fabs(AutoDriveY));
 							
-							
+							if(fabs(RobotPitch) > MaxPitch) MaxPitch = fabs(RobotPitch);
 							
 						} else{
 							AutoDriveY=(double)((Y/(fctr))*MaxPower)/100.0;
@@ -1251,9 +1257,9 @@ class Robot : public frc::TimedRobot {
 						}
 						
 						
-						if(fabs(RobotPitch) > MaxPitch) MaxPitch = fabs(RobotPitch);
+						
 
-						if(RampHit && (MaxPitch - 6.0 >  RobotPitch)){
+						if(RampHit && (MaxPitch - 6.0 >  fabs(RobotPitch))){
 							AutoLine++;
 							AutoTime.Reset();
 							FirstPass=1;
@@ -1271,6 +1277,7 @@ class Robot : public frc::TimedRobot {
 								AutoTime.Reset();
 						 	}
 						}*/
+						}
 						 break;
 			case MOVE:  //Determine direction and rotation values from autonomous command
 			            fctr=fabs(X)+fabs(Y);
@@ -1311,13 +1318,17 @@ class Robot : public frc::TimedRobot {
 						}
 						break;
 			case TIMED_MOVE:
-					AutoDriveY=AutoY;
-					if(AutoTime.Get().value() * 1000 > AccSec){
-						AutoLine++;
-					    FirstPass=1;
-						AutoTime.Reset();
-				        TeleStarted=0; //Trigger Timer to reset and run on power to wheels
-					}
+					AutoDriveY= -0.3;//(double)AutoY/100;
+					AutoLine++;
+					FirstPass=1;
+					AutoTime.Reset();
+					
+					// if(AutoTime.Get().value() * 1000 > AccSec){
+					// 	AutoLine++;
+					//     FirstPass=1;
+					// 	AutoTime.Reset();
+				    //     TeleStarted=0; //Trigger Timer to reset and run on power to wheels
+					// }
 					break;
 			#ifdef LIMELIGHT
 			case PICKUP_AUTO:
